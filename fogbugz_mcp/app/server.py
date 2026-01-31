@@ -103,9 +103,9 @@ def view_article(article_id: int):
 
 
 def main():
-    # Run MCP server using SSE (HTTP) transport
-    print("Starting FogBugz MCP server on http://localhost:8000")
-    mcp.run(transport="sse")
+    # Run MCP server using stdio transport
+    print("Starting FogBugz MCP server")
+    mcp.run(transport="stdio")
 
 
 if __name__ == "__main__":
