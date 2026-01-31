@@ -130,7 +130,7 @@ class MCPClient:
         await self.exit_stack.aclose()
 
     async def chat_loop(self):
-        print("MCP Client Ready", flush=True)
+        # print("MCP Client Ready", flush=True)
 
         while True:
             try:
