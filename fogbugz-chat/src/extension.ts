@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
 import { MCPProcess } from './mcpProcess';
+import * as fs from 'fs';
+import * as path from 'path';
 
 let mcpProcess: MCPProcess | null = null;
 let outputChannel: vscode.OutputChannel;
@@ -150,179 +152,25 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
 		outputChannel.appendLine('Chat history cleared');
 	}
 
-	private _getHtmlForWebview(webview: vscode.Webview) {
-		return `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-	<meta charset="UTF-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-	<style>
-		:root {
-			--bg: var(--vscode-editor-background);
-			--fg: var(--vscode-editor-foreground);
-			--border: var(--vscode-editorWidget-border);
-			--input-bg: var(--vscode-input-background);
-			--input-fg: var(--vscode-input-foreground);
-			--button-bg: var(--vscode-button-background);
-			--button-fg: var(--vscode-button-foreground);
-			--user-bg: var(--vscode-textBlockQuote-background);
-			--assistant-bg: var(--vscode-editorWidget-background);
-		}
-
-		body {
-			margin: 0;
-			padding: 0;
-			background: var(--bg);
-			color: var(--fg);
-			font-family: var(--vscode-font-family);
-			font-size: var(--vscode-font-size);
-			display: flex;
-			flex-direction: column;
-			height: 100vh;
-			overflow: hidden;
-		}
-
-		#chat {
-			flex: 1;
-			overflow-y: auto;
-			padding: 12px;
-			display: flex;
-			flex-direction: column;
-			gap: 8px;
-		}
-
-		.message {
-			padding: 8px 10px;
-			border-radius: 6px;
-			max-width: 100%;
-			white-space: pre-wrap;
-			line-height: 1.4;
-			font-size: 13px;
-		}
-
-		.user {
-			align-self: flex-end;
-			background: var(--user-bg);
-			border: 1px solid var(--border);
-		}
-
-		.assistant {
-			align-self: flex-start;
-			background: var(--assistant-bg);
-			border: 1px solid var(--border);
-			font-family: var(--vscode-editor-font-family);
-		}
-
-		.system {
-			align-self: center;
-			background: transparent;
-			border: none;
-			font-size: 12px;
-			opacity: 0.6;
-			font-style: italic;
-		}
-
-		#input-container {
-			display: flex;
-			gap: 6px;
-			padding: 8px;
-			border-top: 1px solid var(--border);
-			background: var(--bg);
-		}
-
-		#input {
-			flex: 1;
-			background: var(--input-bg);
-			color: var(--input-fg);
-			border: 1px solid var(--border);
-			border-radius: 4px;
-			padding: 6px 8px;
-			font-family: inherit;
-			font-size: 13px;
-		}
-
-		button {
-			background: var(--button-bg);
-			color: var(--button-fg);
-			border: none;
-			border-radius: 4px;
-			padding: 0 12px;
-			cursor: pointer;
-			font-size: 13px;
-		}
-
-		button:hover {
-			opacity: 0.9;
-		}
-	</style>
-</head>
-<body>
-	<div id="chat"></div>
-
-	<div id="input-container">
-		<input
-			id="input"
-			placeholder="Ask about FogBugz… (type 'clear' to clear history)"
-			onkeydown="if(event.key==='Enter') send()"
-		/>
-		<button onclick="send()">Send</button>
-	</div>
-
-	<script>
-		const vscode = acquireVsCodeApi();
-		const chat = document.getElementById('chat');
-		const input = document.getElementById('input');
-
-		// Request chat history when webview loads
-		vscode.postMessage({ type: 'requestHistory' });
-
-		function addMessage(text, cls) {
-			const div = document.createElement('div');
-			div.className = 'message ' + cls;
-			div.textContent = text;
-			chat.appendChild(div);
-			chat.scrollTop = chat.scrollHeight;
-		}
-
-		function send() {
-			const text = input.value.trim();
-			if (!text) return;
-
-			// Check if user typed "clear"
-			if (text.toLowerCase() === 'clear') {
-				vscode.postMessage({ type: 'userMessage', text });
-				input.value = '';
-				return;
+	private _getHtmlForWebview(webview: vscode.Webview): string {
+		// Try to load from external HTML file
+		const htmlPath = path.join(this._context.extensionPath, 'src', 'chatview.html');
+		
+		try {
+			if (fs.existsSync(htmlPath)) {
+				return fs.readFileSync(htmlPath, 'utf8');
 			}
-
-			addMessage(text, 'user');
-			vscode.postMessage({ type: 'userMessage', text });
-			input.value = '';
+		} catch (error) {
+			outputChannel.appendLine(`Failed to load HTML file: ${error}`);
 		}
 
-		window.addEventListener('message', event => {
-			const msg = event.data;
-			
-			if (msg.type === 'assistant') {
-				addMessage(msg.text, 'assistant');
-			} else if (msg.type === 'loadHistory') {
-				// Load chat history
-				chat.innerHTML = '';
-				msg.history.forEach(item => {
-					addMessage(item.text, item.type);
-				});
-			} else if (msg.type === 'clearHistory') {
-				chat.innerHTML = '';
-				addMessage('Chat history cleared', 'system');
-			}
-		});
-	</script>
-</body>
-</html>
-		`;
+		// Fallback to inline HTML if file doesn't exist
+		return `Sorry, the chat view HTML file is missing.`;
 	}
-}
+
+	
+	}
+
 
 export function deactivate() {
 	mcpProcess?.dispose();
