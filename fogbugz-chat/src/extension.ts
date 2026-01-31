@@ -1,85 +1,106 @@
 import * as vscode from 'vscode';
-import { spawn, ChildProcessWithoutNullStreams } from 'child_process';
+import { MCPProcess } from './mcpProcess';
 
-let mcpProcess: ChildProcessWithoutNullStreams | null = null;
-let panel: vscode.WebviewPanel | null = null;
+let mcpProcess: MCPProcess | null = null;
+let outputChannel: vscode.OutputChannel;
 
 export function activate(context: vscode.ExtensionContext) {
 	console.log('FogBugz Chat extension activated');
 
+	// Create output channel for debugging
+	outputChannel = vscode.window.createOutputChannel('FogBugz Chat');
+	context.subscriptions.push(outputChannel);
+
+	// Register the webview view provider
+	const provider = new ChatViewProvider(context.extensionUri, context);
+	
+	context.subscriptions.push(
+		vscode.window.registerWebviewViewProvider(
+			'fogbugz-chat.chatView',
+			provider
+		)
+	);
+
+	// Optional: Keep the command to open the sidebar programmatically
 	const disposable = vscode.commands.registerCommand(
 		'fogbugz-chat.startChat',
 		() => {
-			startMcpClient(context);
-			openChatUI(context);
+			vscode.commands.executeCommand('fogbugz-chat.chatView.focus');
 		}
 	);
 
 	context.subscriptions.push(disposable);
 }
 
-function startMcpClient(context: vscode.ExtensionContext) {
-	if (mcpProcess) {
-		return;
+class ChatViewProvider implements vscode.WebviewViewProvider {
+	private _view?: vscode.WebviewView;
+	private _context: vscode.ExtensionContext;
+
+	constructor(
+		private readonly _extensionUri: vscode.Uri,
+		context: vscode.ExtensionContext
+	) {
+		this._context = context;
 	}
 
-	// You can later move this to settings.json
-	const pythonPath = 'D:\\IVP AI Boost\\.venv\\Scripts\\python.exe';
-	const clientPath = context.asAbsolutePath('python/client.py');
+	public resolveWebviewView(
+		webviewView: vscode.WebviewView,
+		context: vscode.WebviewViewResolveContext,
+		_token: vscode.CancellationToken
+	) {
+		this._view = webviewView;
 
-	mcpProcess = spawn(pythonPath, [clientPath], {
-		stdio: 'pipe',
-	});
-
-	mcpProcess.stdout.on('data', (data) => {
-		const text = data.toString();
-		console.log('[MCP STDOUT]', text);
-		panel?.webview.postMessage({
-			type: 'assistant',
-			text,
-		});
-	});
-
-	mcpProcess.stderr.on('data', (data) => {
-		console.error('[MCP STDERR]', data.toString());
-	});
-
-	mcpProcess.on('exit', (code) => {
-		console.log(`MCP client exited with code ${code}`);
-		mcpProcess = null;
-	});
-}
-
-function openChatUI(context: vscode.ExtensionContext) {
-	if (panel) {
-		panel.reveal();
-		return;
-	}
-
-	panel = vscode.window.createWebviewPanel(
-		'fogbugzChat',
-		'FogBugz Chat',
-		vscode.ViewColumn.One,
-		{
+		webviewView.webview.options = {
 			enableScripts: true,
+			localResourceRoots: [this._extensionUri]
+		};
+
+		webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+
+		// Start MCP process when view is resolved
+		this._startMcpClient();
+
+		// Handle messages from the webview
+		webviewView.webview.onDidReceiveMessage((msg) => {
+			if (msg.type === 'userMessage' && mcpProcess) {
+				mcpProcess.send(msg.text);
+			}
+		});
+
+
+	}
+
+	private _startMcpClient() {
+		if (mcpProcess) {
+			outputChannel.appendLine('MCP process already running');
+			return;
 		}
-	);
 
-	panel.webview.html = getWebviewHtml();
+		outputChannel.appendLine('Starting MCP process...');
 
-	panel.webview.onDidReceiveMessage((msg) => {
-		if (msg.type === 'userMessage' && mcpProcess) {
-			mcpProcess.stdin.write(msg.text + '\n');
+		// You can later move this to settings.json
+		const pythonPath = 'D:\\IVP AI Boost\\.venv\\Scripts\\python.exe';
+		const clientPath = this._context.asAbsolutePath('python/client.py');
+
+		try {
+			mcpProcess = new MCPProcess(pythonPath, clientPath, outputChannel);
+
+			// Listen to the MCP process output and forward to webview
+			// We need to modify MCPProcess class to support callbacks
+			outputChannel.appendLine('MCP process started successfully');
+			mcpProcess.onMessage((text: string) => {
+				if (this._view) {
+					this._view.webview.postMessage({ type: 'assistant', text });
+				}
+			});
+		} catch (error) {
+			outputChannel.appendLine(`Failed to start MCP process: ${error}`);
+			vscode.window.showErrorMessage('Failed to start FogBugz Chat MCP process');
 		}
-	});
+	}
 
-	panel.onDidDispose(() => {
-		panel = null;
-	});
-}
-
-function getWebviewHtml(): string {
-	return `
+	private _getHtmlForWebview(webview: vscode.Webview) {
+		return `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -108,23 +129,25 @@ function getWebviewHtml(): string {
 			display: flex;
 			flex-direction: column;
 			height: 100vh;
+			overflow: hidden;
 		}
 
 		#chat {
 			flex: 1;
 			overflow-y: auto;
-			padding: 16px;
+			padding: 12px;
 			display: flex;
 			flex-direction: column;
-			gap: 12px;
+			gap: 8px;
 		}
 
 		.message {
-			padding: 10px 12px;
+			padding: 8px 10px;
 			border-radius: 6px;
-			max-width: 90%;
+			max-width: 100%;
 			white-space: pre-wrap;
-			line-height: 1.5;
+			line-height: 1.4;
+			font-size: 13px;
 		}
 
 		.user {
@@ -142,8 +165,8 @@ function getWebviewHtml(): string {
 
 		#input-container {
 			display: flex;
-			gap: 8px;
-			padding: 12px;
+			gap: 6px;
+			padding: 8px;
 			border-top: 1px solid var(--border);
 			background: var(--bg);
 		}
@@ -154,8 +177,9 @@ function getWebviewHtml(): string {
 			color: var(--input-fg);
 			border: 1px solid var(--border);
 			border-radius: 4px;
-			padding: 8px;
+			padding: 6px 8px;
 			font-family: inherit;
+			font-size: 13px;
 		}
 
 		button {
@@ -163,8 +187,9 @@ function getWebviewHtml(): string {
 			color: var(--button-fg);
 			border: none;
 			border-radius: 4px;
-			padding: 0 16px;
+			padding: 0 12px;
 			cursor: pointer;
+			font-size: 13px;
 		}
 
 		button:hover {
@@ -178,7 +203,7 @@ function getWebviewHtml(): string {
 	<div id="input-container">
 		<input
 			id="input"
-			placeholder="Ask about FogBugz documentation…"
+			placeholder="Ask about FogBugz…"
 			onkeydown="if(event.key==='Enter') send()"
 		/>
 		<button onclick="send()">Send</button>
@@ -215,10 +240,11 @@ function getWebviewHtml(): string {
 	</script>
 </body>
 </html>
-`;
+		`;
+	}
 }
 
-
 export function deactivate() {
-	mcpProcess?.kill();
+	mcpProcess?.dispose();
+	outputChannel?.dispose();
 }

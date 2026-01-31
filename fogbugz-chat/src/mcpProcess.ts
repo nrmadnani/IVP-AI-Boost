@@ -4,7 +4,7 @@ import * as vscode from 'vscode';
 export class MCPProcess {
 	private process: ChildProcessWithoutNullStreams;
 	private outputChannel: vscode.OutputChannel;
-
+	private onMessageCallback?: (message: string) => void;
 	constructor(
 		pythonPath: string,
 		clientScriptPath: string,
@@ -18,6 +18,9 @@ export class MCPProcess {
 
 		this.process.stdout.on('data', (data) => {
 			this.outputChannel.appendLine(`🧠 MCP: ${data.toString()}`);
+			if (this.onMessageCallback) {
+				this.onMessageCallback(data.toString());
+			}
 		});
 
 		this.process.stderr.on('data', (data) => {
@@ -34,6 +37,9 @@ export class MCPProcess {
 		this.process.stdin.write(message + '\n');
 	}
 
+	onMessage(callback: (message: string) => void) {
+		this.onMessageCallback = callback;
+	}
 	dispose() {
 		this.process.kill();
 	}

@@ -17,8 +17,25 @@
         "command": "fogbugz-chat.startChat",
         "title": "FogBugz: Start Chat"
       }
-    ]
-
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "fogbugz-chat-sidebar",
+          "title": "FogBugz Chat",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "fogbugz-chat-sidebar": [
+        {
+          "type": "webview",
+          "id": "fogbugz-chat.chatView",
+          "name": "Chat"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
