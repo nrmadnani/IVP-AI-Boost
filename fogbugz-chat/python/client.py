@@ -38,7 +38,7 @@ class MCPClient:
         if not (is_python or is_js):
             raise ValueError("Server script must be a .py or .js file")
 
-        command = "python" if is_python else "node"
+        command = sys.executable if is_python else "node"
         server_params = StdioServerParameters(
             command=command, args=[server_script_path], env=None
         )
@@ -56,7 +56,7 @@ class MCPClient:
         # List available tools
         response = await self.session.list_tools()
         tools = response.tools
-        print("\nConnected to server with tools:", [tool.name for tool in tools])
+        # print("\nConnected to server with tools:", [tool.name for tool in tools])
 
     async def process_query(self, query: str) -> str:
         messages = [{"role": "user", "content": query}]
@@ -130,29 +130,33 @@ class MCPClient:
         await self.exit_stack.aclose()
 
     async def chat_loop(self):
-        """Run an interactive chat loop"""
-        print("\nMCP Client Started!")
-        print("Type your queries or 'quit' to exit.")
+        print("MCP Client Ready", flush=True)
 
         while True:
             try:
-                query = input("\nQuery: ").strip()
+                line = input()
+            except EOFError:
+                break  # VS Code closed stdin
 
-                if query.lower() == 'quit':
-                    break
+            query = line.strip()
+            if not query:
+                continue
 
+            if query.lower() == "quit":
+                break
+
+            try:
                 response = await self.process_query(query)
-                print("\n" + response)
-
+                print(response, flush=True)
             except Exception as e:
-                print(f"\nError: {str(e)}")
-
+                print(f"Error: {str(e)}", flush=True)
 
 
 async def main():
     client = MCPClient()
     try:
-        await client.connect_to_server("fogbugz_mcp/app/server.py")
+        await client.connect_to_server("D:/IVP AI Boost/fogbugz_mcp/app/server.py")
+        # ADD MORE MCP SERVERS IF NEEDED
         await client.chat_loop()
     finally:
         await client.cleanup()

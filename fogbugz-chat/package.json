@@ -14,10 +14,11 @@
   "contributes": {
     "commands": [
       {
-        "command": "fogbugz-chat.helloWorld",
-        "title": "Hello World"
+        "command": "fogbugz-chat.startChat",
+        "title": "FogBugz: Start Chat"
       }
     ]
+
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
