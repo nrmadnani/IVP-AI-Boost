@@ -17,11 +17,15 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
 		vscode.window.registerWebviewViewProvider(
 			'fogbugz-chat.chatView',
-			provider
+			provider,
+			{
+				webviewOptions: {
+					retainContextWhenHidden: true  // Keep webview alive when hidden
+				}
+			}
 		)
 	);
 
-	// Optional: Keep the command to open the sidebar programmatically
 	const disposable = vscode.commands.registerCommand(
 		'fogbugz-chat.startChat',
 		() => {
@@ -35,6 +39,7 @@ export function activate(context: vscode.ExtensionContext) {
 class ChatViewProvider implements vscode.WebviewViewProvider {
 	private _view?: vscode.WebviewView;
 	private _context: vscode.ExtensionContext;
+	private static readonly CHAT_HISTORY_KEY = 'fogbugz.chatHistory';
 
 	constructor(
 		private readonly _extensionUri: vscode.Uri,
@@ -62,12 +67,26 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
 
 		// Handle messages from the webview
 		webviewView.webview.onDidReceiveMessage((msg) => {
-			if (msg.type === 'userMessage' && mcpProcess) {
-				mcpProcess.send(msg.text);
+			if (msg.type === 'userMessage') {
+				// Check if user typed "clear" command
+				if (msg.text.trim().toLowerCase() === 'clear') {
+					this._clearHistory();
+					return;
+				}
+				
+				if (mcpProcess) {
+					mcpProcess.send(msg.text);
+					// Save user message to history
+					this._addToHistory({ type: 'user', text: msg.text });
+				}
+			} else if (msg.type === 'requestHistory') {
+				// Send chat history to webview when it requests it
+				this._sendHistoryToWebview();
 			}
 		});
 
-
+		// Send history when webview is first loaded
+		this._sendHistoryToWebview();
 	}
 
 	private _startMcpClient() {
@@ -78,25 +97,57 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
 
 		outputChannel.appendLine('Starting MCP process...');
 
-		// You can later move this to settings.json
 		const pythonPath = 'D:\\IVP AI Boost\\.venv\\Scripts\\python.exe';
 		const clientPath = this._context.asAbsolutePath('python/client.py');
 
 		try {
 			mcpProcess = new MCPProcess(pythonPath, clientPath, outputChannel);
 
-			// Listen to the MCP process output and forward to webview
-			// We need to modify MCPProcess class to support callbacks
-			outputChannel.appendLine('MCP process started successfully');
-			mcpProcess.onMessage((text: string) => {
-				if (this._view) {
-					this._view.webview.postMessage({ type: 'assistant', text });
-				}
+			mcpProcess.onMessage((message) => {
+				// Forward to webview
+				this._view?.webview.postMessage({
+					type: 'assistant',
+					text: message
+				});
+				// Save assistant message to history
+				this._addToHistory({ type: 'assistant', text: message });
 			});
+
+			outputChannel.appendLine('MCP process started successfully');
 		} catch (error) {
 			outputChannel.appendLine(`Failed to start MCP process: ${error}`);
 			vscode.window.showErrorMessage('Failed to start FogBugz Chat MCP process');
 		}
+	}
+
+	private _addToHistory(message: { type: string; text: string }) {
+		const history = this._getHistory();
+		history.push(message);
+		// Keep only last 100 messages to avoid storage limits
+		if (history.length > 100) {
+			history.shift();
+		}
+		this._context.globalState.update(ChatViewProvider.CHAT_HISTORY_KEY, history);
+	}
+
+	private _getHistory(): Array<{ type: string; text: string }> {
+		return this._context.globalState.get(ChatViewProvider.CHAT_HISTORY_KEY, []);
+	}
+
+	private _sendHistoryToWebview() {
+		const history = this._getHistory();
+		this._view?.webview.postMessage({
+			type: 'loadHistory',
+			history: history
+		});
+	}
+
+	private _clearHistory() {
+		this._context.globalState.update(ChatViewProvider.CHAT_HISTORY_KEY, []);
+		this._view?.webview.postMessage({
+			type: 'clearHistory'
+		});
+		outputChannel.appendLine('Chat history cleared');
 	}
 
 	private _getHtmlForWebview(webview: vscode.Webview) {
@@ -163,6 +214,15 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
 			font-family: var(--vscode-editor-font-family);
 		}
 
+		.system {
+			align-self: center;
+			background: transparent;
+			border: none;
+			font-size: 12px;
+			opacity: 0.6;
+			font-style: italic;
+		}
+
 		#input-container {
 			display: flex;
 			gap: 6px;
@@ -203,7 +263,7 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
 	<div id="input-container">
 		<input
 			id="input"
-			placeholder="Ask about FogBugz…"
+			placeholder="Ask about FogBugz… (type 'clear' to clear history)"
 			onkeydown="if(event.key==='Enter') send()"
 		/>
 		<button onclick="send()">Send</button>
@@ -213,6 +273,9 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
 		const vscode = acquireVsCodeApi();
 		const chat = document.getElementById('chat');
 		const input = document.getElementById('input');
+
+		// Request chat history when webview loads
+		vscode.postMessage({ type: 'requestHistory' });
 
 		function addMessage(text, cls) {
 			const div = document.createElement('div');
@@ -226,6 +289,13 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
 			const text = input.value.trim();
 			if (!text) return;
 
+			// Check if user typed "clear"
+			if (text.toLowerCase() === 'clear') {
+				vscode.postMessage({ type: 'userMessage', text });
+				input.value = '';
+				return;
+			}
+
 			addMessage(text, 'user');
 			vscode.postMessage({ type: 'userMessage', text });
 			input.value = '';
@@ -233,8 +303,18 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
 
 		window.addEventListener('message', event => {
 			const msg = event.data;
+			
 			if (msg.type === 'assistant') {
 				addMessage(msg.text, 'assistant');
+			} else if (msg.type === 'loadHistory') {
+				// Load chat history
+				chat.innerHTML = '';
+				msg.history.forEach(item => {
+					addMessage(item.text, item.type);
+				});
+			} else if (msg.type === 'clearHistory') {
+				chat.innerHTML = '';
+				addMessage('Chat history cleared', 'system');
 			}
 		});
 	</script>
