@@ -25,12 +25,6 @@ FOGBUGZ_TOOLS = [
         returns="List of articles with article_id and title",
     ),
     ToolSpec(
-        name="search_articles",
-        description="Search FogBugz articles by keyword.",
-        input_model=SearchArticlesInput,
-        returns="Ranked list of matching articles",
-    ),
-    ToolSpec(
         name="view_article",
         description="Retrieve the full content of a FogBugz article.",
         input_model=ViewArticleInput,
