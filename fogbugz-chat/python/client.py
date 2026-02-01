@@ -14,7 +14,8 @@ from agent.graph import build_react_graph
 from agent.utils import load_chat_model
 from fogbugz_mcp.app.fogbugz_tools import FOGBUGZ_TOOLS, export_mcp_tools
 import json
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, SystemMessage
+from agent.prompts import SYSTEM_PROMPT
 from langchain_core.runnables import RunnableConfig
 
 load_dotenv()
@@ -65,7 +66,7 @@ class MCPClient:
         result = {}
         try: 
             initial_state = {
-                "messages": [HumanMessage(content=query)],
+                "messages": [SystemMessage(content=SYSTEM_PROMPT),HumanMessage(content=query)],
                 "final_output": [],
             }
             config = RunnableConfig(configurable={"llm": self.llm, "session": self.session})

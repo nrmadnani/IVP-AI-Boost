@@ -68,19 +68,19 @@ def list_articles(wiki_id: int):
     return client.list_articles(wiki_id)
 
 
-@mcp.tool()
-def search_articles(query: str):
-    """
-    Search for FogBugz articles by keyword.
+# @mcp.tool()
+# def search_articles(query: str):
+#     """
+#     Search for FogBugz articles by keyword.
     
-    Input:
-      - query: string (search term)
+#     Input:
+#       - query: string (search term)
     
-    Returns:
-      - article_id
-      - title
-    """
-    return client.search_articles(query)
+#     Returns:
+#       - article_id
+#       - title
+#     """
+#     return client.search_articles(query)
 
 
 @mcp.tool()
