@@ -1,4 +1,5 @@
 import asyncio
+import traceback
 from typing import Optional
 from contextlib import AsyncExitStack
 
@@ -7,8 +8,15 @@ from mcp.client.stdio import stdio_client
 from openai import OpenAI
 from dotenv import load_dotenv
 import os
-from fogbugz_mcp.app.fogbugz_tools import FOGBUGZ_TOOLS,export_mcp_tools
+
+from requests import session
+from agent.graph import build_react_graph
+from agent.utils import load_chat_model
+from fogbugz_mcp.app.fogbugz_tools import FOGBUGZ_TOOLS, export_mcp_tools
 import json
+from langchain_core.messages import HumanMessage
+from langchain_core.runnables import RunnableConfig
+
 load_dotenv()
 
 
@@ -16,16 +24,8 @@ class MCPClient:
     def __init__(self):
         self.session: Optional[ClientSession] = None
         self.exit_stack = AsyncExitStack()
-        # self.llm = AzureOpenAI(
-        #     api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-        #     azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT"),
-        #     azure_deployment=os.getenv("AZURE_OPENAI_MODEL"),
-        #     api_version="2024-06-30"
-        # )
-        self.llm = OpenAI(
-            base_url=os.getenv("OPENAI_ENDPOINT"), 
-            api_key=os.getenv("OPENAI_API_KEY")
-        )
+        self.agent = None
+        self.llm = load_chat_model()
 
     async def connect_to_server(self, server_script_path: str):
         """Connect to an MCP server
@@ -56,75 +56,25 @@ class MCPClient:
         # List available tools
         response = await self.session.list_tools()
         tools = response.tools
+
+        self.agent = build_react_graph()
+
         # print("\nConnected to server with tools:", [tool.name for tool in tools])
 
     async def process_query(self, query: str) -> str:
-        messages = [{"role": "user", "content": query}]
-        model_name = os.getenv("OPENAI_MODEL") or "gpt-4.1"
+        result = {}
+        try: 
+            initial_state = {
+                "messages": [HumanMessage(content=query)],
+                "final_output": [],
+            }
+            config = RunnableConfig(configurable={"llm": self.llm, "session": self.session})
+            result = await self.agent.ainvoke(initial_state, config)
+        except Exception as e:
+            print(f"Error during processing query: {str(e)}")
+            print(traceback.format_exc(), flush=True)
 
-        # Discover tools from MCP
-        response = await self.session.list_tools()
-
-        available_tools = export_mcp_tools(FOGBUGZ_TOOLS)
-
-        final_text = []
-
-        while True:
-            response = self.llm.chat.completions.create(
-                model=model_name,
-                messages=messages,
-                tools=available_tools,
-            )
-
-            choice = response.choices[0]
-            message = choice.message
-
-            # 1️⃣ Normal assistant text
-            if message.content:
-                final_text.append(message.content)
-
-            # 2️⃣ Tool calls (GPT-4.1 style)
-            if message.tool_calls:
-                for tool_call in message.tool_calls:
-                    tool_name = tool_call.function.name
-                    tool_args = json.loads(tool_call.function.arguments)
-
-                    final_text.append(
-                        f"[Calling tool {tool_name} with args {tool_args}]"
-                    )
-
-                    # Execute tool via MCP
-                    result = await self.session.call_tool(tool_name, tool_args)
-
-                    # Add assistant tool call message
-                    messages.append({
-                        "role": "assistant",
-                        "tool_calls": [
-                            {
-                                "id": tool_call.id,
-                                "type": "function",
-                                "function": {
-                                    "name": tool_name,
-                                    "arguments": tool_call.function.arguments,
-                                },
-                            }
-                        ],
-                    })
-
-                    # Add tool result
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": tool_call.id,
-                        "content": result.content,
-                    })
-
-                # Continue loop → model will consume tool result
-                continue
-
-            # 3️⃣ No tool calls → final answer reached
-            break
-
-        return "\n".join(final_text)
+        return "\n".join(result.get("final_output", []))
 
     async def cleanup(self):
         await self.exit_stack.aclose()
@@ -161,6 +111,8 @@ async def main():
     finally:
         await client.cleanup()
 
+
 if __name__ == "__main__":
     import sys
+
     asyncio.run(main())
