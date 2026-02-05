@@ -1,7 +1,6 @@
 from .tool_spec import ToolSpec, ToolInput
 from .fogbugz_tool_inputs import (
     ListArticlesInput,
-    SearchArticlesInput,
     ViewArticleInput,
 )
 from typing import List, Dict, Any
