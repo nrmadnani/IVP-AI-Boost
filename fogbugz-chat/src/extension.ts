@@ -6,16 +6,22 @@ import * as path from 'path';
 let mcpProcess: MCPProcess | null = null;
 let outputChannel: vscode.OutputChannel;
 
+function getExtensionVersion(context: vscode.ExtensionContext): string {
+	const extension = vscode.extensions.getExtension(
+		context.extension.id
+	);
+	return extension?.packageJSON.version ?? '0.0.0';
+}
+
 export function activate(context: vscode.ExtensionContext) {
 	console.log('FogBugz Chat extension activated');
-
 	// Create output channel for debugging
 	outputChannel = vscode.window.createOutputChannel('FogBugz Chat');
 	context.subscriptions.push(outputChannel);
 
 	// Register the webview view provider
 	const provider = new ChatViewProvider(context.extensionUri, context);
-	
+	provider.clearHistory(); // Clear history on activation to start fresh
 	context.subscriptions.push(
 		vscode.window.registerWebviewViewProvider(
 			'fogbugz-chat.chatView',
@@ -72,7 +78,7 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
 			if (msg.type === 'userMessage') {
 				// Check if user typed "clear" command
 				if (msg.text.trim().toLowerCase() === 'clear') {
-					this._clearHistory();
+					this.clearHistory("Chat History cleared");
 					return;
 				}
 				
@@ -144,12 +150,14 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
 		});
 	}
 
-	private _clearHistory() {
+	public clearHistory(message: string | null = null) {
 		this._context.globalState.update(ChatViewProvider.CHAT_HISTORY_KEY, []);
 		this._view?.webview.postMessage({
 			type: 'clearHistory'
 		});
-		outputChannel.appendLine('Chat history cleared');
+		if (message) {
+			outputChannel.appendLine(message);
+		} 
 	}
 
 	private _getHtmlForWebview(webview: vscode.Webview): string {
