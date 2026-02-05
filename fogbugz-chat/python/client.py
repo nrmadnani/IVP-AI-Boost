@@ -76,7 +76,7 @@ class MCPClient:
                 ],
             }
             # config = RunnableConfig(configurable={"llm": self.llm, "session": self.session})
-            result = self.agent.invoke(initial_state)
+            result = await self.agent.ainvoke(initial_state)
         except Exception as e:
             print(f"Error during processing query: {str(e)}")
             print(traceback.format_exc(), flush=True)
