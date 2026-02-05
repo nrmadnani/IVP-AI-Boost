@@ -21,6 +21,9 @@ from langchain_mcp_adapters.tools import load_mcp_tools
 from deepagents import create_deep_agent
 load_dotenv()
 
+sys.stdin.reconfigure(encoding="utf-8")
+sys.stdout.reconfigure(encoding="utf-8")
+sys.stderr.reconfigure(encoding="utf-8")
 
 class MCPClient:
     def __init__(self):
