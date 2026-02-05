@@ -12,11 +12,12 @@ import os
 from requests import session
 from agent.graph import build_react_graph
 from agent.utils import load_chat_model
-from fogbugz_mcp.app.fogbugz_tools import FOGBUGZ_TOOLS, export_mcp_tools
 import json
 from langchain_core.messages import HumanMessage, SystemMessage
 from agent.prompts import SYSTEM_PROMPT
 from langchain_core.runnables import RunnableConfig
+import sys
+from langchain_mcp_adapters.tools import load_mcp_tools
 
 load_dotenv()
 
@@ -53,14 +54,11 @@ class MCPClient:
         )
 
         await self.session.initialize()
+        mcp_tools = await load_mcp_tools(self.session)
 
-        # List available tools
-        response = await self.session.list_tools()
-        tools = response.tools
+        self.llm = self.llm.bind_tools(mcp_tools)
 
         self.agent = build_react_graph()
-
-        # print("\nConnected to server with tools:", [tool.name for tool in tools])
 
     async def process_query(self, query: str) -> str:
         result = {}

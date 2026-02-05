@@ -1,6 +1,6 @@
 import os
 from langchain_openai import ChatOpenAI
-from fogbugz_mcp.app.fogbugz_tools import FOGBUGZ_TOOLS, export_mcp_tools
+from agent.graph import plan_steps, vfs_write
 
 def load_chat_model():
     """
@@ -15,7 +15,4 @@ def load_chat_model():
         temperature=0
     )
 
-    fogbugz_tools = export_mcp_tools(FOGBUGZ_TOOLS)
-    llm_with_tools = llm.bind_tools(fogbugz_tools)
-
-    return llm_with_tools
+    return llm
