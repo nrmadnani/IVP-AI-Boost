@@ -18,7 +18,7 @@ from agent.prompts import SYSTEM_PROMPT
 from langchain_core.runnables import RunnableConfig
 import sys
 from langchain_mcp_adapters.tools import load_mcp_tools
-
+from deepagents import create_deep_agent
 load_dotenv()
 
 
@@ -58,22 +58,30 @@ class MCPClient:
 
         self.llm = self.llm.bind_tools(mcp_tools)
 
-        self.agent = build_react_graph()
+        # self.agent = build_react_graph()
+        self.agent = create_deep_agent(model=self.llm, 
+                                       tools=mcp_tools, 
+                                       system_prompt=SYSTEM_PROMPT)
+
 
     async def process_query(self, query: str) -> str:
         result = {}
         try: 
             initial_state = {
-                "messages": [SystemMessage(content=SYSTEM_PROMPT),HumanMessage(content=query)],
-                "final_output": [],
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": query,
+                    }
+                ],
             }
-            config = RunnableConfig(configurable={"llm": self.llm, "session": self.session})
-            result = await self.agent.ainvoke(initial_state, config)
+            # config = RunnableConfig(configurable={"llm": self.llm, "session": self.session})
+            result = self.agent.invoke(initial_state)
         except Exception as e:
             print(f"Error during processing query: {str(e)}")
             print(traceback.format_exc(), flush=True)
 
-        return "\n".join(result.get("final_output", []))
+        return "\n" + result['messages'][-1].content
 
     async def cleanup(self):
         await self.exit_stack.aclose()
