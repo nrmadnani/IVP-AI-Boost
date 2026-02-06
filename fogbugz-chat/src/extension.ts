@@ -6,13 +6,6 @@ import * as path from 'path';
 let mcpProcess: MCPProcess | null = null;
 let outputChannel: vscode.OutputChannel;
 
-function getExtensionVersion(context: vscode.ExtensionContext): string {
-	const extension = vscode.extensions.getExtension(
-		context.extension.id
-	);
-	return extension?.packageJSON.version ?? '0.0.0';
-}
-
 export function activate(context: vscode.ExtensionContext) {
 	console.log('FogBugz Chat extension activated');
 	// Create output channel for debugging
