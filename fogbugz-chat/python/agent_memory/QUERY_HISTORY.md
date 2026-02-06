@@ -1,0 +1,5 @@
+- User intent:
+- Subqueries:
+- Executed queries (include max_results, cols, and time filters):
+- Result summary:
+- Follow-ups or assumptions:
