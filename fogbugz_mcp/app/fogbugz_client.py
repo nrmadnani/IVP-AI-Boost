@@ -186,7 +186,7 @@ class FogBugzClient:
         response = httpx.get(
             f"{self.base_url}/api.asp",
             params=params,
-            timeout=120,
+            timeout=320,
         )
         response.raise_for_status()
         return response.text
@@ -729,3 +729,113 @@ class FogBugzClient:
             "total_hits": int(cases_node.attrib.get("totalHits", 0)),
             "cases": cases,
         }
+
+
+    def list_tags(self) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        List all tags in FogBugz system.
+        
+        Returns:
+            Dictionary with 'tags' key containing list of tags with their metadata:
+            {
+                "tags": [
+                    {
+                        "tag_id": int (ixTag),
+                        "name": str (sTag),
+                        "usage_count": int (cTagUses - number of times tag is used)
+                    }
+                ]
+            }
+        """
+        response_xml = self._request("listTags")
+        root = ET.fromstring(response_xml)
+
+        tags_node = root.find("tags")
+        if tags_node is None:
+            return {"tags": []}
+
+        tags = []
+        for tag in tags_node.findall("tag"):
+            tags.append({
+                "tag_id": int(tag.findtext("ixTag")),
+                "name": tag.findtext("sTag", "").strip(),
+                "usage_count": int(tag.findtext("cTagUses", "0")),
+            })
+
+        return {"tags": tags}
+
+    def list_categories(self) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        List all categories in FogBugz system.
+        
+        Returns:
+            Dictionary with 'categories' key containing list of categories with their metadata:
+            {
+                "categories": [
+                    {
+                        "category_id": int (ixCategory),
+                        "name": str (sCategory),
+                        "plural": str (sPlural),
+                        "is_schedule_item": bool (fIsScheduleItem),
+                        "order": int (iOrder),
+                        "icon_type": int (nIconType)
+                    }
+                ]
+            }
+        """
+        response_xml = self._request("listCategories")
+        root = ET.fromstring(response_xml)
+        
+        categories_node = root.find("categories")
+        if categories_node is None:
+            return {"categories": []}
+        
+        categories = []
+        for category in categories_node.findall("category"):
+            # Skip deleted categories
+            if parse_bool(category.findtext("fDeleted", "false")):
+                continue
+            
+            categories.append({
+                "category_id": int(category.findtext("ixCategory")),
+                "name": category.findtext("sCategory", "").strip(),
+                "plural": category.findtext("sPlural", "").strip(),
+                "is_schedule_item": parse_bool(category.findtext("fIsScheduleItem", "false")),
+                "order": int(category.findtext("iOrder", "0")),
+                "icon_type": int(category.findtext("nIconType", "0")),
+            })
+        
+        return {"categories": categories}
+
+    def list_priorities(self) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        List all priorities in FogBugz system.
+        
+        Returns:
+            Dictionary with 'priorities' key containing list of priorities with their metadata:
+            {
+                "priorities": [
+                    {
+                        "priority_id": int (ixPriority),
+                        "name": str (sPriority),
+                        "is_default": bool (fDefault)
+                    }
+                ]
+            }
+        """
+        response_xml = self._request("listPriorities")
+        root = ET.fromstring(response_xml)
+        
+        priorities_node = root.find("priorities")
+        if priorities_node is None:
+            return {"priorities": []}
+        
+        priorities = []
+        for priority in priorities_node.findall("priority"):
+            priorities.append({
+                "priority_id": int(priority.findtext("ixPriority")),
+                "name": priority.findtext("sPriority", "").strip(),
+                "is_default": parse_bool(priority.findtext("fDefault", "false")),
+            })
+        
+        return {"priorities": priorities}

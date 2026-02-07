@@ -28,6 +28,8 @@ from agent.filesystem_tools import (
     write_block,
     write_block_function,
 )
+from agent.case_tools import create_fogbugz_case
+from langgraph.checkpoint.memory import MemorySaver
 
 load_dotenv()
 
@@ -36,11 +38,12 @@ sys.stdout.reconfigure(encoding="utf-8")
 sys.stderr.reconfigure(encoding="utf-8")
 
 FOGBUGZ_MEMORY_DIR = "D:/IVP AI Boost/fogbugz-chat/python/agent_memory"
+ROOT_DIR = "D:/D:/IVP AI Boost/fogbugz-chat/python"
 FOGBUGZ_ADV_MEMORY_FILES = [
     f"{FOGBUGZ_MEMORY_DIR}/AGENTS.md",
     f"{FOGBUGZ_MEMORY_DIR}/QUERY_HISTORY.md",
 ]
-FILESYSTEM_BACKEND = FilesystemBackend(root_dir=FOGBUGZ_MEMORY_DIR)
+FILESYSTEM_BACKEND = FilesystemBackend(root_dir=ROOT_DIR)
 MAX_TURNS = 6   # 6 user+assistant pairs
 
 
@@ -52,6 +55,8 @@ class MCPClient:
         self.llm = load_chat_model()
         self.summarize_llm = load_chat_model()
         self.messages = []
+        self.checkpointer = MemorySaver()
+
 
     def _turn_count(self) -> int:
         return sum(1 for m in self.messages if m["role"] == "user")
@@ -103,12 +108,16 @@ class MCPClient:
             "backend": FILESYSTEM_BACKEND,
         }
 
+
         self.agent = create_deep_agent(
             model=self.llm,
-            tools=tools,
+            tools=tools + [create_fogbugz_case],
             system_prompt=SYSTEM_PROMPT,
+            skills=["./agent/skills/"],
+            checkpointer=self.checkpointer,
             subagents=[fogbugz_advanced_search_agent],
             backend=FILESYSTEM_BACKEND,
+            
         )
         self.messages = [
             {
@@ -139,7 +148,9 @@ class MCPClient:
             result = await self.agent.ainvoke(
                 {
                     "messages": self.messages
-                }
+                },
+                config={"configurable": {"thread_id": "12345"}},
+
             )
 
             # ✅ Append assistant response

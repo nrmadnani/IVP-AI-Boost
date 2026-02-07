@@ -28,3 +28,12 @@ List all wikis
 - User intent: deep search MissingMethodException LegData; Subqueries: advanced search; Executed queries: query=\"MissingMethodException SecMasterService LegData\" max_results=50; Result summary: 0 hits; Follow-ups: broaden search
 - User intent: broaden search MissingMethodException SecMaster; Executed advanced_search query="SecMaster MissingMethodException" max_results=200; Result summary: 13 hits including 329213; Follow-ups: investigate case 329213 next
 - User intent: Request workflow steps to add a security to SecMaster
+- User intent: Get EDM API/curl for exporting pipeline; Executed: list_wikis, list_articles(108), view_article(5325); Result: ExportPipeline REST POST details returned
+- User intent: search for EDM pipeline export via API JSON; Subqueries: advanced_search EDM pipeline export; Executed queries: advanced_search(query="EDM pipeline export json API" max_results=10); Result summary: 10 hits returned; Follow-ups: inspect case details if needed.
+- User intent: search for EDM pipeline json export via API; Subqueries: advanced_search EDM pipeline json; Executed queries: advanced_search queries; Result summary: multiple cases including 994647, 683239; Follow-ups: answer user
+- User intent: Asked about exporting pipelines in JSON via EDM API (feature usage)
+- Subqueries: Locate EDM API export pipeline documentation
+- Executed queries: list_wikis (EDM wikis), list_articles (EDM API), view_article (Export Pipeline)
+- Result summary: Found ExportPipeline API docs in IVP EDM API Programmer Guide
+- Follow-ups or assumptions: None
+- User intent: fetch case 2759161; Subqueries: get_events_of_a_case; Executed queries: pending; Result summary: pending; Follow-ups: none

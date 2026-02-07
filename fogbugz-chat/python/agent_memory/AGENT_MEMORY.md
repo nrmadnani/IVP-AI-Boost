@@ -52,3 +52,6 @@ Related documentation: IVP Security Master overview article; IVP Security Master
 - Case 2753894: NMC Environment Slowness; Active; user-facing slowness on NMC machines, likely environment issue not SecMaster-specific.
 - Viewed: IVP ORKA - An Overview — gist: ORKA is a centralized orchestration engine using KESTRA to manage cross-product workflows.
 - Viewed: IVP EDM DEV wiki overview (articles list); gist: Development wiki containing EDM technical docs, specs, installation, parser, modeller, API guides.
+- Viewed wiki article 12. Export Pipeline (EDM API) — details on REST POST to ExportPipeline
+- Wiki viewed: IVP EDM API Programmer Guide / Export Pipeline (ID: 5325)
+- Viewed wiki article 12. Export Pipeline (ID: 5325) — covers REST POST and example payload for ExportPipeline API.

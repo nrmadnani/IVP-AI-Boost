@@ -19,8 +19,7 @@ client = FogBugzClient(
 
 mcp = FastMCP(
     name="FogBugz Documentation MCP",
-    instructions=(
-        "This MCP server provides comprehensive access to IVP (Indus Valley Partners) Company's FogBugz system. "
+    instructions=("This MCP server provides comprehensive access to IVP (Indus Valley Partners) Company's FogBugz system. "
         
         "**Documentation & Wiki Access:**\n"
         "- Use `list_wikis` to discover documentation spaces/wikis\n"
@@ -30,6 +29,9 @@ mcp = FastMCP(
         "**Project & Organization:**\n"
         "- Use `list_projects` to get all active FogBugz projects\n"
         "- Use `list_areas` to get areas within a specific project (requires project_id)\n"
+        "- Use `list_categories` to get all case categories (Bug, Feature, Task, etc.)\n"
+        "- Use `list_priorities` to get all case priority levels (Blocker, Critical, Major, etc.)\n"
+        "- Use `list_tags` to get all available tags with usage statistics, quick keyword based lookups\n"
         
         "**Case Search & Investigation:**\n"
         "- Use `search_cases_by_project_and_area` to find cases using human-readable project and area names\n"
@@ -42,6 +44,7 @@ mcp = FastMCP(
         "**Workflow Tips:**\n"
         "- For wikis: list_wikis → list_articles → view_article\n"
         "- For cases: list_projects → list_areas → search_cases_by_project_and_area or advanced_search → get_events_of_a_case\n"
+        "- For metadata: list_categories, list_priorities, and list_tags provide reference data for filtering and understanding case attributes\n"
         "- The get_events_of_a_case tool provides granular event history including who did what and when, useful for understanding case context and progression"
     ),
 )
@@ -243,6 +246,52 @@ def get_events_of_a_case(case_id: str):
         return parsed_data
     except Exception as e:
         return {"error": f"Failed to parse FogBugz XML: {str(e)}"}
+
+
+@mcp.tool()
+def list_tags():
+    """
+    List all tags in the FogBugz system.
+    
+    Returns:
+      Dictionary with 'tags' key containing a list of tag objects:
+      - tag_id: integer (unique identifier)
+      - name: tag name
+      - usage_count: number of times this tag is used across cases
+    """
+    return client.list_tags()
+
+@mcp.tool()
+def list_categories():
+    """
+    List all active categories in the FogBugz system.
+    
+    Returns:
+      Dictionary with 'categories' key containing a list of category objects:
+      - category_id: integer (unique identifier)
+      - name: category name (e.g., "Bug", "Feature", "Task")
+      - plural: plural form of the category name
+      - is_schedule_item: boolean indicating if this is a schedule item
+      - order: display order
+      - icon_type: icon type identifier
+    
+    Note: Deleted categories are automatically filtered out.
+    """
+    return client.list_categories()
+
+
+@mcp.tool()
+def list_priorities():
+    """
+    List all priorities in the FogBugz system.
+    
+    Returns:
+      Dictionary with 'priorities' key containing a list of priority objects:
+      - priority_id: integer (unique identifier)
+      - name: priority name (e.g., "Blocker", "Critical", "Major", "Minor")
+      - is_default: boolean indicating if this is the default priority
+    """
+    return client.list_priorities()
 
 def main():
     # Run MCP server using stdio transport
