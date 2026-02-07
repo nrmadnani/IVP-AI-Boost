@@ -1,3 +1,4 @@
+import json
 import os
 import httpx
 from typing import Optional, Dict
@@ -17,10 +18,10 @@ if not FOGBUGZ_URL or not FOGBUGZ_TOKEN:
 def create_fogbugz_case(
     sTitle: str,
     sEvent: str,
-    sProject: str,
-    sArea: str,
-    sCategory: str = "Documentation",
-    sPriority: Optional[str] = None,
+    ixProject: str,
+    ixArea: str,
+    ixCategory: Optional[str] = "13",
+    ixPriority: Optional[str] = "4",
 ) -> Dict[str, str]:
     """
     Create a new case in FogBugz system.
@@ -28,10 +29,10 @@ def create_fogbugz_case(
     Args:
         sTitle: Title of the case (required)
         sEvent: Description/details of the issue (required)
-        sProject: FogBugz project name (required)
-        sArea: FogBugz area name within the project (required)
-        sCategory: Case category (default: "Documentation")
-        sPriority: Priority level (optional, e.g., "Major", "Critical", "Blocker")
+        ixProject: FogBugz project id (required)
+        ixArea: FogBugz area id within the project (required)
+        ixCategory: Fogbugz category id (defaults to 13 i.e., Documentation)
+        ixPriority: Priority id assigned to this case (defaults to 4 i.e., Minor)
     
     Returns:
         Dictionary with case_id_created and case_status
@@ -41,11 +42,11 @@ def create_fogbugz_case(
         "cmd": "new",
         "sTitle": sTitle,
         "sEvent": sEvent,
-        "sProject": sProject if sProject else "test",
-        "sArea": sArea if sArea else "Undecided",
-        "sCategory": sCategory,
+        "ixProject": ixProject if ixProject else "393",
+        "ixArea": ixArea if ixArea else "3518", 
+        "ixCategory": ixCategory if ixCategory else "13",
         "token": FOGBUGZ_TOKEN,
-        "sPriority": sPriority if sPriority else "Minor",
+        "ixPriority": ixPriority if ixPriority else "4", 
         "ixPersonAssignedTo": "4124"
     }
     
@@ -53,8 +54,8 @@ def create_fogbugz_case(
         # Make POST request to FogBugz API
         response = httpx.post(
             f"{FOGBUGZ_URL}/f/api/0/jsonapi",
-            json=payload,
-            headers={"Content-Type": "application/json"},
+            content=json.dumps(payload),
+            headers={"Content-Type": "body-raw"},
             timeout=300,
         )
         response.raise_for_status()

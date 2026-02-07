@@ -37,3 +37,6 @@ List all wikis
 - Result summary: Found ExportPipeline API docs in IVP EDM API Programmer Guide
 - Follow-ups or assumptions: None
 - User intent: fetch case 2759161; Subqueries: get_events_of_a_case; Executed queries: pending; Result summary: pending; Follow-ups: none
+
+## Query Batch
+- {'User intent': 'User wanted to create a new FogBugz case.', 'Subqueries': [], 'Executed queries': "Case creation workflow executed with collected fields: Title='Test case midnight', Description='testing', Project ID=302, Area ID=2267 (EDM), Category ID=3 (Inquiry), Priority=7 (Don't Fix).", 'Result summary': 'FogBugz case successfully created with Case ID 2759198.', 'Follow-ups or assumptions': 'No follow-up requested; case creation completed after user confirmation.'}
