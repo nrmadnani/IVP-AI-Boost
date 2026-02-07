@@ -68,23 +68,33 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
 
 		// Handle messages from the webview
 		webviewView.webview.onDidReceiveMessage((msg) => {
-			if (msg.type === 'userMessage') {
-				// Check if user typed "clear" command
-				if (msg.text.trim().toLowerCase() === 'clear') {
-					this.clearHistory("Chat History cleared");
-					return;
-				}
-				
-				if (mcpProcess) {
-					mcpProcess.send(msg.text);
-					// Save user message to history
-					this._addToHistory({ type: 'user', text: msg.text });
-				}
-			} else if (msg.type === 'requestHistory') {
-				// Send chat history to webview when it requests it
-				this._sendHistoryToWebview();
-			}
-		});
+    if (msg.type === 'userMessage') {
+        // Check if user typed "/clear" command - handle locally only
+        if (msg.text.trim().toLowerCase() === '/clear') {
+            this.clearHistory("Chat History cleared");
+            return;
+        }
+        
+        // For /new command, send to Python server AND clear local history
+        if (msg.text.trim().toLowerCase() === '/new') {
+            if (mcpProcess) {
+                mcpProcess.send(msg.text);
+                // Save user message to history
+                this._addToHistory({ type: 'user', text: msg.text });
+            }
+            return;
+        }
+        
+        if (mcpProcess) {
+            mcpProcess.send(msg.text);
+            // Save user message to history
+            this._addToHistory({ type: 'user', text: msg.text });
+        }
+    } else if (msg.type === 'requestHistory') {
+        // Send chat history to webview when it requests it
+        this._sendHistoryToWebview();
+    }
+});
 
 		// Send history when webview is first loaded
 		this._sendHistoryToWebview();
@@ -105,11 +115,16 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
 			mcpProcess = new MCPProcess(pythonPath, clientPath, outputChannel);
 
 			mcpProcess.onMessage((message) => {
-				// Forward to webview
 				this._view?.webview.postMessage({
 					type: 'assistant',
 					text: message
 				});
+				
+				// If it's the "new conversation" message, clear local history
+				if (message.trim().includes('🧹 New conversation started')) {
+					this.clearHistory('🧹 New conversation started. (long-term memory preserved).'); 
+				}
+				
 				// Save assistant message to history
 				this._addToHistory({ type: 'assistant', text: message });
 			});
@@ -146,7 +161,8 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
 	public clearHistory(message: string | null = null) {
 		this._context.globalState.update(ChatViewProvider.CHAT_HISTORY_KEY, []);
 		this._view?.webview.postMessage({
-			type: 'clearHistory'
+			type: 'clearHistory',
+			message: message
 		});
 		if (message) {
 			outputChannel.appendLine(message);

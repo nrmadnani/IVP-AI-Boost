@@ -225,3 +225,45 @@ def write_block(
         _release_lock(lock)
 
     return f"OK: Appended block '{block_title}' to {filepath}"
+
+
+def write_block_function(
+    filepath: Annotated[str, "Relative path to the file inside the agent memory workspace"],
+    block_title: Annotated[str, "Title of the block or section"],
+    content: Annotated[str, "Content belonging to this block"]
+) -> str:
+    """
+    Append a structured, markdown-style block to a file.
+
+    Format written:
+    - Blank line
+    - Markdown level-2 header (##)
+    - Block content
+    - Trailing newline
+
+    Use this tool when:
+    - Writing documents
+    - Adding sections to markdown files
+    - Creating clearly separated content blocks
+
+    INPUTS:
+    - filepath (str): Relative path inside the agent memory workspace. Should be agent_memory/AGENT_MEMORY.md or agent_memory/QUERY_HISTORY.md or agent_memory/USER_PREFERENCES.md only.
+    - block_title (str): Title of the section (used as markdown header)
+    - content (str): Body content for the block
+
+    RETURNS:
+    - str:
+        • Confirmation message indicating the block was appended
+    """
+    path = _resolve_path(filepath)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    lock = _acquire_lock(path)
+    try:
+        with path.open("a", encoding="utf-8") as f:
+            f.write(f"\n## {block_title}\n")
+            f.write(content.rstrip() + "\n")
+    finally:
+        _release_lock(lock)
+
+    return f"OK: Appended block '{block_title}' to {filepath}"

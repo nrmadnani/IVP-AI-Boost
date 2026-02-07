@@ -12,7 +12,7 @@ def load_chat_model():
         model=model_name,
         api_key=os.getenv("OPENAI_API_KEY"),
         base_url=os.getenv("OPENAI_ENDPOINT"),
-        temperature=0
+        temperature=1
     )
 
     return llm

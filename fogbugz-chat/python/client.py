@@ -26,6 +26,7 @@ from agent.filesystem_tools import (
     write_to_file,
     append_line,
     write_block,
+    write_block_function,
 )
 
 load_dotenv()
@@ -40,6 +41,7 @@ FOGBUGZ_ADV_MEMORY_FILES = [
     f"{FOGBUGZ_MEMORY_DIR}/QUERY_HISTORY.md",
 ]
 FILESYSTEM_BACKEND = FilesystemBackend(root_dir=FOGBUGZ_MEMORY_DIR)
+MAX_TURNS = 6   # 6 user+assistant pairs
 
 
 class MCPClient:
@@ -48,6 +50,11 @@ class MCPClient:
         self.exit_stack = AsyncExitStack()
         self.agent = None
         self.llm = load_chat_model()
+        self.summarize_llm = load_chat_model()
+        self.messages = []
+
+    def _turn_count(self) -> int:
+        return sum(1 for m in self.messages if m["role"] == "user")
 
     async def connect_to_server(self, server_script_path: str):
         """Connect to an MCP server
@@ -103,50 +110,213 @@ class MCPClient:
             subagents=[fogbugz_advanced_search_agent],
             backend=FILESYSTEM_BACKEND,
         )
+        self.messages = [
+            {
+                "role": "system",
+                "content": SYSTEM_PROMPT
+            }
+        ]
 
     async def process_query(self, query: str) -> str:
-        result = {}
         try:
-            initial_state = {
-                "messages": [
+            if query.strip().lower() == "/new":
+                self.messages = [
                     {
-                        "role": "user",
-                        "content": query,
+                        "role": "system",
+                        "content": SYSTEM_PROMPT,
                     }
-                ],
-            }
-            # config = RunnableConfig(configurable={"llm": self.llm, "session": self.session})
-            result = await self.agent.ainvoke(initial_state)
+                ]
+                return "\n🧹 New conversation started. (long-term memory preserved)."
+
+            # ✅ Append user message
+            self.messages.append(
+                {
+                    "role": "user",
+                    "content": query,
+                }
+            )
+
+            result = await self.agent.ainvoke(
+                {
+                    "messages": self.messages
+                }
+            )
+
+            # ✅ Append assistant response
+            assistant_msg = result["messages"][-1]
+            self.messages.append(
+                {
+                    "role": "assistant",
+                    "content": assistant_msg.content,
+                }
+            )
+
+            # 🔹 Summarize & store if needed
+            await self.summarize_and_store()
+
+            return "\n" + assistant_msg.content
+
         except Exception as e:
             print(f"Error during processing query: {str(e)}")
             print(traceback.format_exc(), flush=True)
+            return "\n❌ Error processing request."
 
-        return "\n" + result["messages"][-1].content
+    async def summarize_and_store(self):
+        """
+        Summarizes the current conversation buffer and writes structured memory
+        into filesystem-backed memory files.
+        """
+
+        # Do not summarize trivial conversations
+        if self._turn_count() <= MAX_TURNS:
+            return
+
+        conversation_json = json.dumps(self.messages, indent=2)
+
+        summary_prompt = [
+            {
+                "role": "system",
+                 "content": (
+            "You are a memory distillation engine.\n"
+            "Your job is to extract durable, reusable information from a conversation\n"
+            "and map it into THREE authoritative memory files.\n\n"
+
+            "You DO NOT write files yourself.\n"
+            "You ONLY return structured JSON that will be written verbatim by the system.\n\n"
+
+            "The memory files and their purposes are:\n\n"
+
+            "1) AGENT_MEMORY.md\n"
+            "Purpose:\n"
+            "- Durable agent knowledge across sessions.\n"
+            "- Tracks what the agent has learned from FogBugz cases, wikis, and investigations.\n\n"
+            "Populate ONLY factual, stable information that belongs in one of these sections:\n"
+            "- Summary (high-level agent objectives or conclusions)\n"
+            "- Case references (FogBugz case IDs with brief takeaway)\n"
+            "- Wiki references (title + 1–2 line gist)\n"
+            "- Known issues / workarounds\n"
+            "- Actions / To-dos (unfinished investigations)\n\n"
+
+            "2) QUERY_HISTORY.md\n"
+            "Purpose:\n"
+            "- Audit trail of user search intent and executed searches.\n"
+            "- Prevent repeated or redundant queries.\n\n"
+            "Capture each user query as a structured audit entry including:\n"
+            "- User intent\n"
+            "- Subqueries (if any)\n"
+            "- Executed queries (filters, columns, date ranges)\n"
+            "- Result summary\n"
+            "- Follow-ups or assumptions\n\n"
+
+            "3) USER_PREFERENCES.md\n"
+            "Purpose:\n"
+            "- Durable user preferences for retrieval, filtering, or summarization.\n\n"
+            "ONLY extract preferences that are:\n"
+            "- Explicitly stated by the user, OR\n"
+            "- Repeated consistently across multiple turns.\n\n"
+            "Do NOT include transient, one-off, or session-specific instructions.\n\n"
+
+            "Return JSON with EXACTLY these top-level keys:\n"
+            "- agent_memory: array of bullet-point entries suitable for AGENT_MEMORY.md\n"
+            "- query_history: array of structured query summaries\n"
+            "- user_preferences: array of explicit preference statements\n\n"
+
+            "Rules:\n"
+            "- Do NOT hallucinate.\n"
+            "- If a category has no valid entries, return an empty array.\n"
+            "- Be concise, factual, and non-redundant.\n" )
+            },
+            {
+                "role": "user",
+                "content": conversation_json,
+            },
+        ]
+
+        result = await self.summarize_llm.ainvoke(summary_prompt)
+
+        try:
+            distilled = json.loads(result.content)
+        except Exception:
+            # Hard failure protection — never corrupt memory
+            return
+
+        # ---- Write AGENT_MEMORY.md ----
+        if distilled.get("agent_memory"):
+            write_block_function(
+                filepath="AGENT_MEMORY.md",
+                block_title="Agent Memory Update",
+                content="\n".join(f"- {item}" for item in distilled["agent_memory"]),
+            )
+
+        # ---- Write USER_PREFERENCES.md ----
+        if distilled.get("user_preferences"):
+            write_block_function(
+                filepath="USER_PREFERENCES.md",
+                block_title="User Preferences Update",
+                content="\n".join(f"- {item}" for item in distilled["user_preferences"]),
+            )
+
+        # ---- Write QUERY_HISTORY.md (always append) ----
+        if distilled.get("query_history"):
+            write_block_function(
+                filepath="QUERY_HISTORY.md",
+                block_title="Query Batch",
+                content="\n".join(f"- {item}" for item in distilled["query_history"]),
+            )
+
+        # ---- Compact short-term memory ----
+        self.messages = [
+            {
+                "role": "system",
+                "content": SYSTEM_PROMPT,
+            },
+            {
+                "role": "system",
+                "content": (
+                    "Conversation so far has been summarized into long-term memory. "
+                    "Continue based on stored context."
+                ),
+            },
+        ]
 
     async def cleanup(self):
         await self.exit_stack.aclose()
 
     async def chat_loop(self):
-        # print("MCP Client Ready", flush=True)
-
         while True:
             try:
                 line = input()
             except EOFError:
-                break  # VS Code closed stdin
+                break
 
             query = line.strip()
             if not query:
                 continue
 
-            if query.lower() == "quit":
+            # ---- control commands (never reach agent) ----
+            if query.lower() == "/quit":
                 break
 
+            if query.lower() == "/new":
+                self.messages = [
+                    {
+                        "role": "system",
+                        "content": SYSTEM_PROMPT,
+                    }
+                ]
+                print("\n🧹 New conversation started (long-term memory preserved).", flush=True)
+                continue
+
+            # ---- normal user turn ----
             try:
                 response = await self.process_query(query)
                 print(response, flush=True)
             except Exception as e:
                 print(f"Error: {str(e)}", flush=True)
+
+                # 🔒 rollback safety
+                self.messages = self.messages[:1]
+
 
 
 async def main():

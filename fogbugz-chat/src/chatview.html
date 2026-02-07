@@ -288,7 +288,7 @@
 	<div id="input-container">
 		<input
 			id="input"
-			placeholder="Ask about FogBugz… (type 'clear' to clear history)"
+			placeholder="Ask about FogBugz…"
 			onkeydown="if(event.key==='Enter') send()"
 		/>
 		<button onclick="send()">Send</button>
@@ -366,8 +366,8 @@
 			const text = input.value.trim();
 			if (!text) return;
 
-			// Check if user typed "clear"
-			if (text.toLowerCase() === 'clear') {
+			// Check if user typed "/clear" command or "/new" 
+			if ((text.toLowerCase() === '/clear') || (text.toLowerCase() === '/new')) {
 				vscode.postMessage({ type: 'userMessage', text });
 				input.value = '';
 				return;
@@ -390,8 +390,13 @@
 					addMessage(item.text, item.type);
 				});
 			} else if (msg.type === 'clearHistory') {
+				// Clear chat history with optional system message
 				chat.innerHTML = '';
-				addMessage('Chat history cleared', 'system');
+				if (msg.message) {
+					addMessage(msg.message, 'system');
+				} else {
+					addMessage('Chat history cleared.', 'system');
+				}
 			}
 		});
 

@@ -48,3 +48,7 @@ Related documentation: IVP Security Master overview article; IVP Security Master
 - Response example: JSON with Data array containing SecurityDetailsResponseInfo (example shown in wiki)
 - Purpose: REST-based search of securities across security types with filters and attributes.
 - Source: IVP Security Master wiki – Search/Browse Securities and API Access & Authentication
+- 05. IVP Reference Master Search Functionality — covers Basic Search and Text Specific Search for entities.
+- Case 2753894: NMC Environment Slowness; Active; user-facing slowness on NMC machines, likely environment issue not SecMaster-specific.
+- Viewed: IVP ORKA - An Overview — gist: ORKA is a centralized orchestration engine using KESTRA to manage cross-product workflows.
+- Viewed: IVP EDM DEV wiki overview (articles list); gist: Development wiki containing EDM technical docs, specs, installation, parser, modeller, API guides.
