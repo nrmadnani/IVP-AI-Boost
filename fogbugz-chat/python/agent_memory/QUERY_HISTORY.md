@@ -27,3 +27,4 @@ List all wikis
 - Follow-ups: none
 - User intent: deep search MissingMethodException LegData; Subqueries: advanced search; Executed queries: query=\"MissingMethodException SecMasterService LegData\" max_results=50; Result summary: 0 hits; Follow-ups: broaden search
 - User intent: broaden search MissingMethodException SecMaster; Executed advanced_search query="SecMaster MissingMethodException" max_results=200; Result summary: 13 hits including 329213; Follow-ups: investigate case 329213 next
+- User intent: Request workflow steps to add a security to SecMaster

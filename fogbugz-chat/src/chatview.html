@@ -10,7 +10,15 @@
 	<!-- Highlight.js for syntax highlighting -->
 	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-	
+	<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+	<script>
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'dark',
+    securityLevel: 'loose'
+  });
+</script>
+
 	<style>
 		:root {
 			--bg: var(--vscode-editor-background);
@@ -226,38 +234,101 @@
 		}
 
 		/* Input container */
-		#input-container {
+#input-container {
+	display: flex;
+	gap: 6px;
+	padding: 8px;
+	border-top: 1px solid var(--border);
+	background: var(--bg);
+	align-items: flex-end; /* 👈 KEY FIX */
+}
+
+#input-wrapper {
+	flex: 1;
+	position: relative;
+	display: flex;
+	flex-direction: column;
+}
+
+#input {
+	width: 100%;
+	background: var(--input-bg);
+	color: var(--input-fg);
+	border: 1px solid var(--border);
+	border-radius: 4px;
+	padding: 6px 8px;
+	font-family: inherit;
+	font-size: 13px;
+	order: 2;  /* Input comes second */
+}
+
+#input:focus {
+	outline: 1px solid var(--vscode-focusBorder);
+}
+
+/* Command menu styles */
+#command-menu {
+	width: 100%;
+	background: var(--vscode-editorWidget-background);
+	border: 1px solid var(--border);
+	border-radius: 4px;
+	margin-bottom: 4px;
+	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+	display: none;
+	z-index: 1000;
+	order: 1;  /* Menu comes first (appears above) */
+}
+
+#command-menu.visible {
+	display: block;
+}
+
+		.command-item {
+			padding: 8px 12px;
+			cursor: pointer;
 			display: flex;
-			gap: 6px;
-			padding: 8px;
-			border-top: 1px solid var(--border);
-			background: var(--bg);
+			flex-direction: column;
+			gap: 2px;
+			border-bottom: 1px solid var(--border);
 		}
 
-		#input {
-			flex: 1;
-			background: var(--input-bg);
-			color: var(--input-fg);
-			border: 1px solid var(--border);
-			border-radius: 4px;
-			padding: 6px 8px;
-			font-family: inherit;
+		.command-item:last-child {
+			border-bottom: none;
+		}
+
+		.command-item:hover,
+		.command-item.selected {
+			background: var(--vscode-list-hoverBackground);
+		}
+
+		.command-name {
 			font-size: 13px;
+			font-weight: 500;
+			color: var(--fg);
 		}
 
-		#input:focus {
-			outline: 1px solid var(--vscode-focusBorder);
+		.command-description {
+			font-size: 11px;
+			color: var(--vscode-descriptionForeground);
+			opacity: 0.8;
 		}
 
 		button {
 			background: var(--button-bg);
 			color: var(--button-fg);
+			height: fit-content;
 			border: none;
 			border-radius: 4px;
-			padding: 0 12px;
+			padding: 6px 12px;  /* Changed from 0 12px */
 			cursor: pointer;
 			font-size: 13px;
+			flex: 0 0 auto;  /* This is the key! grow=0, shrink=0, basis=auto */
+			white-space: nowrap;
 		}
+
+button:hover {
+	opacity: 0.9;
+}
 
 		button:hover {
 			opacity: 0.9;
@@ -280,24 +351,54 @@
 		#chat::-webkit-scrollbar-thumb:hover {
 			background: var(--vscode-scrollbarSlider-hoverBackground);
 		}
+
+		.mermaid {
+	background: var(--assistant-bg);
+	border: 1px solid var(--border);
+	border-radius: 6px;
+	padding: 12px;
+	margin: 12px 0;
+	overflow-x: auto;
+}
+
 	</style>
 </head>
 <body>
 	<div id="chat"></div>
 
 	<div id="input-container">
-		<input
-			id="input"
-			placeholder="Ask about FogBugz…"
-			onkeydown="if(event.key==='Enter') send()"
-		/>
-		<button onclick="send()">Send</button>
+		<div id="input-wrapper">
+			<div id="command-menu">
+				<div class="command-item" data-command="/new">
+					<span class="command-name">/new</span>
+					<span class="command-description">Start a new conversation</span>
+				</div>
+				<div class="command-item" data-command="/clear">
+					<span class="command-name">/clear</span>
+					<span class="command-description">Clear chat history</span>
+				</div>
+			</div>
+			<input
+				id="input"
+				placeholder="Ask about FogBugz…"
+				onkeydown="handleKeyDown(event)"
+			/>
+			
+		</div>
+		<button onclick="send()" style="width:fit-content">Send</button>
 	</div>
 
 	<script>
 		const vscode = acquireVsCodeApi();
 		const chat = document.getElementById('chat');
 		const input = document.getElementById('input');
+		const commandMenu = document.getElementById('command-menu');
+		let selectedCommandIndex = -1;
+
+		const commands = [
+			{ name: '/new', description: 'Start a new conversation' },
+			{ name: '/clear', description: 'Clear chat history' }
+		];
 
 		// Configure marked.js options
 		marked.setOptions({
@@ -316,6 +417,113 @@
 		// Request chat history when webview loads
 		vscode.postMessage({ type: 'requestHistory' });
 
+		// Show/hide command menu based on input
+		input.addEventListener('input', function() {
+			const value = input.value;
+			if (value === '/' || value.startsWith('/')) {
+				showCommandMenu();
+				filterCommands(value);
+			} else {
+				hideCommandMenu();
+			}
+		});
+
+		// Handle clicks outside to close menu
+		document.addEventListener('click', function(e) {
+			if (!input.contains(e.target) && !commandMenu.contains(e.target)) {
+				hideCommandMenu();
+			}
+		});
+
+		// Handle command item clicks
+		document.querySelectorAll('.command-item').forEach(item => {
+			item.addEventListener('click', function() {
+				const command = this.getAttribute('data-command');
+				input.value = command;
+				hideCommandMenu();
+				input.focus();
+			});
+		});
+
+		function showCommandMenu() {
+			commandMenu.classList.add('visible');
+			selectedCommandIndex = -1;
+			updateSelectedCommand();
+		}
+
+		function hideCommandMenu() {
+			commandMenu.classList.remove('visible');
+			selectedCommandIndex = -1;
+		}
+
+		function filterCommands(value) {
+			const items = commandMenu.querySelectorAll('.command-item');
+			let visibleCount = 0;
+			
+			items.forEach(item => {
+				const command = item.getAttribute('data-command');
+				if (command.startsWith(value.toLowerCase())) {
+					item.style.display = 'flex';
+					visibleCount++;
+				} else {
+					item.style.display = 'none';
+				}
+			});
+
+			// Hide menu if no matches
+			if (visibleCount === 0) {
+				hideCommandMenu();
+			}
+		}
+
+		function updateSelectedCommand() {
+			const items = Array.from(commandMenu.querySelectorAll('.command-item')).filter(
+				item => item.style.display !== 'none'
+			);
+			
+			items.forEach((item, index) => {
+				if (index === selectedCommandIndex) {
+					item.classList.add('selected');
+				} else {
+					item.classList.remove('selected');
+				}
+			});
+		}
+
+		function handleKeyDown(event) {
+			const isMenuVisible = commandMenu.classList.contains('visible');
+			
+			if (isMenuVisible) {
+				const visibleItems = Array.from(commandMenu.querySelectorAll('.command-item')).filter(
+					item => item.style.display !== 'none'
+				);
+				
+				if (event.key === 'ArrowDown') {
+					event.preventDefault();
+					selectedCommandIndex = Math.min(selectedCommandIndex + 1, visibleItems.length - 1);
+					updateSelectedCommand();
+				} else if (event.key === 'ArrowUp') {
+					event.preventDefault();
+					selectedCommandIndex = Math.max(selectedCommandIndex - 1, 0);
+					updateSelectedCommand();
+				} else if (event.key === 'Enter') {
+					if (selectedCommandIndex >= 0 && selectedCommandIndex < visibleItems.length) {
+						event.preventDefault();
+						const command = visibleItems[selectedCommandIndex].getAttribute('data-command');
+						input.value = command;
+						hideCommandMenu();
+						return;
+					}
+					send();
+				} else if (event.key === 'Escape') {
+					event.preventDefault();
+					hideCommandMenu();
+				}
+			} else if (event.key === 'Enter') {
+				send();
+			}
+		}
+
 		function addMessage(text, cls) {
 			const div = document.createElement('div');
 			div.className = 'message ' + cls;
@@ -325,7 +533,7 @@
 				const contentDiv = document.createElement('div');
 				contentDiv.className = 'assistant-content';
 				contentDiv.innerHTML = marked.parse(text);
-				
+				renderMermaid(contentDiv);
 				// Add copy buttons to code blocks
 				contentDiv.querySelectorAll('pre code').forEach((block) => {
 					const wrapper = document.createElement('div');
@@ -362,9 +570,62 @@
 			chat.scrollTop = chat.scrollHeight;
 		}
 
+		function sanitizeMermaid(source) {
+		return source
+			// Replace unicode arrows
+			.replace(/→/g, '->')
+			.replace(/←/g, '<-')
+			.replace(/⇒/g, '=>')
+
+			// Replace smart quotes
+			.replace(/[“”]/g, '"')
+			.replace(/[‘’]/g, "'")
+
+			// Normalize ellipsis
+			.replace(/…/g, '...')
+
+			// REMOVE ALL PARENTHESES
+			.replace(/[()]/g, '')
+
+}
+		function renderMermaid(container) {
+  const mermaidBlocks = container.querySelectorAll('pre code.language-mermaid');
+  const mermaidNodes = [];
+
+  mermaidBlocks.forEach((block) => {
+    const parentPre = block.parentElement;
+    const graphDefinition = block.textContent;
+
+    const mermaidDiv = document.createElement('div');
+    mermaidDiv.className = 'mermaid';
+    mermaidDiv.textContent = graphDefinition;
+
+    parentPre.replaceWith(mermaidDiv);
+    mermaidNodes.push(mermaidDiv);
+  });
+
+  if (mermaidNodes.length > 0) {
+	try {		// Sanitize Mermaid definitions before rendering
+		mermaidNodes.forEach(node => {
+			node.textContent = sanitizeMermaid(node.textContent);
+		});
+		mermaid.run({ nodes: mermaidNodes });
+	} catch (err) {
+		console.error('Mermaid render failed:', err);
+		// HARD FAIL: remove all Mermaid output
+		mermaidNodes.forEach(div => div.remove());
+	}
+}
+}
+
+
+
 		function send() {
 			const text = input.value.trim();
 			if (!text) return;
+
+			// Hide command menu if visible
+			hideCommandMenu();
 
 			// Check if user typed "/clear" command or "/new" 
 			if ((text.toLowerCase() === '/clear') || (text.toLowerCase() === '/new')) {
