@@ -44,7 +44,7 @@ FOGBUGZ_ADV_MEMORY_FILES = [
     f"{FOGBUGZ_MEMORY_DIR}/QUERY_HISTORY.md",
 ]
 FILESYSTEM_BACKEND = FilesystemBackend(root_dir=ROOT_DIR)
-MAX_TURNS = 6   # 6 user+assistant pairs
+MAX_TURNS = 15   # 15 user+assistant pairs
 
 
 class MCPClient:
