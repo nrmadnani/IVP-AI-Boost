@@ -27,3 +27,4 @@ SecMaster REST Endpoint (HTTP REST only)
 - Source: IVP Security Master wiki – Search/Browse Securities and API Access & Authentication
 - Preference: Always return HTTP REST endpoints and REST examples for any APIs referenced in FogBugz documentation.
 User prefers detailed Security Master 8.0 API documentation in all responses.
+- User preference: User uses EDM exclusively (prefer EDM-first answers).

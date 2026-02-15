@@ -55,3 +55,4 @@ Related documentation: IVP Security Master overview article; IVP Security Master
 - Viewed wiki article 12. Export Pipeline (EDM API) — details on REST POST to ExportPipeline
 - Wiki viewed: IVP EDM API Programmer Guide / Export Pipeline (ID: 5325)
 - Viewed wiki article 12. Export Pipeline (ID: 5325) — covers REST POST and example payload for ExportPipeline API.
+- Viewed Security Master Documentation (ID:2703) — overview and architecture.

@@ -40,3 +40,7 @@ List all wikis
 
 ## Query Batch
 - {'User intent': 'User wanted to create a new FogBugz case.', 'Subqueries': [], 'Executed queries': "Case creation workflow executed with collected fields: Title='Test case midnight', Description='testing', Project ID=302, Area ID=2267 (EDM), Category ID=3 (Inquiry), Priority=7 (Don't Fix).", 'Result summary': 'FogBugz case successfully created with Case ID 2759198.', 'Follow-ups or assumptions': 'No follow-up requested; case creation completed after user confirmation.'}
+- User intent: Find definition of Security Master; Subqueries: list wikis for SecMaster; Executed queries: pending; Result summary: pending; Follow-ups: none
+- User intent: Check cases for Security Master file attachment API support
+- Subqueries: Search for cases mentioning attach/upload file in create/update security
+- Executed queries: advanced_search(query="Security Master attach file create update security file upload", max_results=20)

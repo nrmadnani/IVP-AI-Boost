@@ -839,3 +839,236 @@ class FogBugzClient:
             })
         
         return {"priorities": priorities}
+    
+
+    def list_people(self) -> List[Dict[str, Any]]:
+        """
+        List all people in the FogBugz system.
+        
+        Returns:
+            List of dictionaries containing person metadata:
+            - person_id: int (ixPerson)
+            - full_name: str (sFullName)
+            - email: str (sEmail)
+        """
+        response_xml = self._request("listPeople")
+        root = ET.fromstring(response_xml)
+        
+        people_node = root.find("people")
+        if people_node is None:
+            return []
+        
+        people = []
+        for person in people_node.findall("person"):
+            # Skip deleted people
+            if parse_bool(person.findtext("fDeleted", "false")):
+                continue
+            
+            people.append({
+                "person_id": int(person.findtext("ixPerson")),
+                "full_name": person.findtext("sFullName", "").strip(),
+                "email": person.findtext("sEmail", "").strip(),
+            })
+        
+        return people
+    
+    def get_person_id_by_email(self, email: str) -> Optional[int]:
+        """
+        Get person_id by email address.
+        
+        Args:
+            email: Email address of the person to search for (case-insensitive)
+        
+        Returns:
+            person_id (int) if found, None otherwise
+        """
+        people = self.list_people()
+        
+        # Case-insensitive email search
+        email_lower = email.lower().strip()
+        
+        for person in people:
+            if person["email"].lower() == email_lower:
+                return person["person_id"]
+        
+        return None
+    
+    def list_filters(self) -> List[Dict[str, Any]]:
+        """
+        List all saved filters in the FogBugz system.
+        
+        Returns:
+            List of dictionaries containing saved filter metadata:
+            - filter_id: int (sFilter attribute)
+            - name: str (filter name from CDATA)
+            
+        Note: Only returns filters with type="saved" (project-based filters).
+            Shared filters are excluded.
+        """
+        response_xml = self._request("listFilters")
+        root = ET.fromstring(response_xml)
+        
+        filters_node = root.find("filters")
+        if filters_node is None:
+            return []
+        
+        filters = []
+        for filter_elem in filters_node.findall("filter"):
+            # Only include saved filters (exclude shared filters)
+            filter_type = filter_elem.get("type", "")
+            if filter_type != "saved":
+                continue
+            
+            filter_id = filter_elem.get("sFilter", "")
+            filter_name = filter_elem.text or ""
+            
+            if filter_id and filter_name:
+                filters.append({
+                    "filter_id": int(filter_id),
+                    "name": filter_name.strip(),
+                })
+        
+        return filters
+    
+
+    def _parse_attachments(self, attachments_node) -> List[Dict[str, str]]:
+        """
+        Parse attachment nodes and construct full URLs.
+        
+        Args:
+            attachments_node: XML node containing attachments
+        
+        Returns:
+            List of attachment dictionaries with file_name and url
+        """
+        if attachments_node is None:
+            return []
+        
+        attachments = []
+        for attachment in attachments_node.findall("attachment"):
+            file_name = _get_text(attachment, "sFileName")
+            s_url = _get_text(attachment, "sURL")
+            
+            if s_url:
+                # Reconstruct full URL:
+                # 1. Replace &amp; with &
+                s_url = s_url.replace("&amp;", "&")
+                # 2. Remove sTicket= parameter
+                s_url = s_url.replace("&sTicket=", "")
+                # 3. Add base URL and token
+                full_url = f"{self.base_url}/{s_url}&token={self.token}"
+                
+                attachments.append({
+                    "file_name": file_name,
+                    "url": full_url,
+                })
+        
+        return attachments
+
+
+    def _parse_image_attachment(self, attachment_url: str) -> Optional[str]:
+        """
+        Parse image attachment using OCR (NOT IMPLEMENTED YET).
+        
+        Args:
+            attachment_url: Full URL to the image attachment
+        
+        Returns:
+            Parsed text from image, or None if parsing fails or not implemented
+        
+        TODO: Implement OCR tool integration (e.g., Tesseract, Google Vision, etc.)
+        """
+        # Placeholder for future OCR implementation
+        return None
+
+
+    def list_cases(self, filter_id: int) -> Dict[str, Any]:
+        """
+        List cases for a given filter.
+        
+        **USE WITH CAUTION**: This function can return a maximum of 10,000 cases.
+        For filters with more cases, only the first 10,000 will be returned.
+        
+        Args:
+            filter_id: FogBugz filter ID (from list_filters)
+        
+        Returns:
+            Dictionary containing:
+            - description: str (filter description)
+            - filter_id: int (the filter used)
+            - count: int (number of cases returned)
+            - total_hits: int (total matching cases)
+            - cases: list of case dictionaries with:
+                - case_id: int (ixBug)
+                - operations: list of available operations
+                - title: str
+                - status: str
+                - is_open: bool
+                - latest_text_summary: str
+                - project: str
+                - area: str
+                - email_assigned_to: str
+                - category: str
+                - related_bugs: str
+                - latest_event: dict with event details (if available):
+                    - event_id: str
+                    - text: str (plain text content)
+                    - html: str (HTML content)
+                    - changes: str (change log)
+                    - description: str (event description)
+                    - person_name: str (person who triggered the event)
+                    - attachments: list of attachments with file_name and url
+                    - parsed_attachment_text: str (OCR parsed text from image attachments, if available)
+        """
+        
+        response_xml = self._request(
+            "listCases",
+            sFilter=filter_id,
+            cols="sTitle,sStatus,fOpen,sLatestTextSummary,sProject,sArea,sCategory,sEmailAssignedTo,ixRelatedBugs"
+        )
+        
+        root = ET.fromstring(response_xml)
+        
+        # Extract top-level metadata
+        description = root.findtext("description", "").strip()
+        filter_id_returned = root.findtext("sFilter", "").strip()
+        
+        cases_node = root.find("cases")
+        if cases_node is None:
+            return {
+                "description": description,
+                "filter_id": int(filter_id_returned) if filter_id_returned else filter_id,
+                "count": 0,
+                "total_hits": 0,
+                "cases": []
+            }
+        
+        count = int(cases_node.get("count", "0"))
+        total_hits = int(cases_node.get("totalHits", "0"))
+        
+        cases = []
+        for case in cases_node.findall("case"):
+            case_id = case.get("ixBug")
+            operations = case.get("operations", "").split(",")
+            
+            cases.append({
+                "case_id": int(case_id) if case_id else None,
+                "operations": [op.strip() for op in operations if op.strip()],
+                "title": _get_text(case, "sTitle"),
+                "status": _get_text(case, "sStatus"),
+                "is_open": parse_bool(_get_text(case, "fOpen") or "false"),
+                "latest_text_summary": _get_text(case, "sLatestTextSummary"),
+                "project": _get_text(case, "sProject"),
+                "area": _get_text(case, "sArea"),
+                "email_assigned_to": _get_text(case, "sEmailAssignedTo"),
+                "category": _get_text(case, "sCategory"),
+                "related_bugs": _get_text(case, "ixRelatedBugs"),
+            })
+        
+        return {
+            "description": description,
+            "filter_id": int(filter_id_returned) if filter_id_returned else filter_id,
+            "count": count,
+            "total_hits": total_hits,
+            "cases": cases,
+        }
