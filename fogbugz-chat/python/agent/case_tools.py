@@ -22,6 +22,7 @@ def create_fogbugz_case(
     ixArea: str,
     ixCategory: Optional[str] = "13",
     ixPriority: Optional[str] = "4",
+    ixPersonAssignedTo: str = "4124"
 ) -> Dict[str, str]:
     """
     Create a new case in FogBugz system.
@@ -33,7 +34,7 @@ def create_fogbugz_case(
         ixArea: FogBugz area id within the project (required)
         ixCategory: Fogbugz category id (defaults to 13 i.e., Documentation)
         ixPriority: Priority id assigned to this case (defaults to 4 i.e., Minor)
-    
+        ixPersonAssignedTo: Id of person to whom this case should be assigned (required)
     Returns:
         Dictionary with case_id_created and case_status
     """
@@ -47,7 +48,7 @@ def create_fogbugz_case(
         "ixCategory": ixCategory if ixCategory else "13",
         "token": FOGBUGZ_TOKEN,
         "ixPriority": ixPriority if ixPriority else "4", 
-        "ixPersonAssignedTo": "4124"
+        "ixPersonAssignedTo": ixPersonAssignedTo if ixPersonAssignedTo else "4124"
     }
     
     try:

@@ -17,7 +17,7 @@ The agent must gather, infer, validate, and normalize all required inputs
 before invoking the `create_fogbugz_case` tool node.
 
 The skill **must not** execute the case creation tool until all required
-parameters are present and validated.
+parameters are present, validated, and approved.
 
 ---
 
@@ -162,6 +162,38 @@ If a required parameter cannot be inferred with high confidence, the agent
 
 ---
 
+### 1.7 `ixPersonAssignedTo` (required — resolved via email)
+
+This parameter must NOT be guessed.
+
+The agent must:
+
+1. Ask the user:
+   "Which user (email address) should this case be assigned to?"
+
+2. Validate that a valid email string is provided.
+
+3. Call MCP tool:
+   `get_person_id_by_email` and provide email as input
+
+4. Extract the returned `person_id`.
+
+5. Use that resolved numeric ID as `ixPersonAssignedTo`.
+
+If:
+- No match found
+- Multiple matches found
+- Email invalid
+
+→ Ask user for clarification before proceeding.
+
+The agent must never:
+- Hardcode a default assignee
+- Skip the resolution step
+- Proceed without resolving a valid person ID
+
+---
+
 ### Step 2: Validate Input Completeness
 
 Before proceeding, the agent **must ensure**:
@@ -170,23 +202,14 @@ Before proceeding, the agent **must ensure**:
 * `sEvent` is present and non-empty
 * `ixProject` is resolved to a valid FogBugz project ID
 * `ixArea` is resolved to a valid area ID within the selected project
+* `ixPersonAssignedTo` is resolved to valid person_id from email address
 
 If **any required field is missing**, the agent must pause and request
 the missing information from the user.
 
 ---
 
-### Step 3: Execute FogBugz Case Creation
-
-Once all required parameters are available:
-
-1. Invoke the `create_fogbugz_case` tool node
-2. Pass the collected and inferred parameters exactly as required
-3. Capture the tool response
-
----
-
-### Step 4: Human-in-the-Loop Approval (Mandatory)
+## Step 3: Present Case Summary (Human-in-the-Loop Approval — Mandatory)
 
 Before executing the `create_fogbugz_case` tool node, the agent **must present a complete, normalized case summary to the user for explicit approval**.
 
@@ -200,6 +223,7 @@ Approval workflow:
    * `ixArea` (with resolved area name)
    * `ixCategory` (if provided)
    * `ixPriority` (if provided)
+   * `ixPersonAssignedTo` (with resolved email address)
 
 2. Clearly indicate that **no case has been created yet**.
 
@@ -227,7 +251,7 @@ Rules:
 
 ---
 
-### Step 5: Execute FogBugz Case Creation
+### Step 4: Execute FogBugz Case Creation
 
 Once explicit human approval is obtained:
 
@@ -237,7 +261,7 @@ Once explicit human approval is obtained:
 
 ---
 
-### Step 6: Return Result to User
+### Step 5: Return Result to User
 
 * Return the full response from `create_fogbugz_case`
 * Explicitly surface:
