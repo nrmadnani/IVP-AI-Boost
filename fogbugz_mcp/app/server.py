@@ -2,7 +2,7 @@ import os
 from typing import Optional
 from dotenv import load_dotenv
 from fastmcp import FastMCP
-from fogbugz_mcp.app.fogbugz_client import FogBugzClient
+from fogbugz_mcp.app.fogbugz_apis import FogBugzClient
 
 load_dotenv()
 
@@ -44,7 +44,10 @@ mcp = FastMCP(
         
         "**Utilities:**\n"
         "- Use `ping` to test server connectivity\n"
-        
+        "- Use `list_mailboxes` to retrieve all mailbox configurations in the system\n"
+        "- Use `add_correspondant_email` to add a new correspondent email address to FogBugz\n"
+        "- Use `list_correspondant_email_addresses` to get a list of all existing correspondant email addresses in Fogbugz\n"
+
         "**Advanced Search Syntax Reference:**\n"
         "FogBugz advanced_search supports powerful query construction. Key syntax:\n"
         "\n"
@@ -328,6 +331,8 @@ def get_events_of_a_case(case_id: str):
                     "priority": str,
                     "project": str,
                     "category": str,
+                    "correspondant_email": str,
+                    "ixMailbox": int,
                     "events": [
                         {
                             "ixBugEvent": str,
@@ -349,7 +354,6 @@ def get_events_of_a_case(case_id: str):
     """
     try:
         parsed_data = client.parse_fogbugz_case_response(case_id)
-        print(type(parsed_data))
         return parsed_data
     except Exception as e:
         return {"error": f"Failed to parse FogBugz XML: {str(e)}"}
@@ -441,7 +445,6 @@ def get_person_id_by_email(email: str):
     }
 
 
-# Commented Out because list_cases is too slow for some filters, they cannot be used as is, need to be split further or just removed i.e., for projects having cases > 10
 @mcp.tool()
 def list_filters():
     """
@@ -518,11 +521,70 @@ def list_cases(filter_id: int):
     """
     return client.list_cases(filter_id)
 
+@mcp.tool()
+def list_mailboxes():
+    """
+    List all mailboxes in the FogBugz system.
+    
+    Returns:
+      Dictionary with 'mailboxes' key containing a list of mailbox objects:
+      - mailbox_id: integer (unique identifier)
+      - email: mailbox email address (e.g., "IVP Service Desk" <AutoTicketCreation@ivp.in>)
+      - email_user: user email associated with the mailbox
+      - template: email template used for this mailbox
+    """
+    return client.list_mailboxes()
+
+
+@mcp.tool()
+def add_correspondant_email(email: str):
+    """
+    Add a correspondent email address to FogBugz system.
+    
+    Input:
+      - email: Valid email address to add as correspondent
+    
+    Returns:
+      Dictionary containing:
+      - success: boolean indicating if the operation succeeded
+      - email: the email address that was added
+      - message: status message describing the result
+    
+    Note: A successful addition returns an empty XML response with HTTP 200 status.
+    """
+    return client.add_correspondant_email(email)
+
+
+@mcp.tool()
+def list_correspondant_email_addresses():
+    """
+    Retrieve all correspondent email addresses configured in the FogBugz system.
+
+    RETURNS:
+        Dictionary with structure:
+
+        {
+            "emails": [
+                {
+                    "display_name": str,
+                    "email_address": str
+                }
+            ],
+            "message": str
+        }
+
+        Where:
+            - emails: List of correspondent email objects.
+            - message: Status message indicating success or failure.
+
+    """
+    return client.list_correspondant_email_addresses()
+
+
 def main():
     # Run MCP server using stdio transport
     print("Starting FogBugz MCP server")
     mcp.run(transport="stdio")
-    #print(client.list_cases(13524))
 
 
 

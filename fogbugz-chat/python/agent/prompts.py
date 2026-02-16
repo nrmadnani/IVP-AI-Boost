@@ -72,6 +72,114 @@ Non-trigger conditions:
 - In such cases, follow CASE-FIRST or WIKI-FIRST logic instead
 
 --------------------------------------------------
+SKILL: manage-case-lifecycle
+--------------------------------------------------
+
+Purpose:
+This skill MUST be used whenever the user intends to manage the lifecycle
+  of an existing FogBugz case using operations: edit, assign, resolve,
+  reactivate, close, or reopen.
+
+Trigger conditions (any of the following):
+User explicitly asks to edit, modify, update, or change a FogBugz case
+User says "assign this case to", "reassign case", "change assignee"
+User says "resolve this case", "mark as resolved", "close this case"
+User says "reopen case", "reactivate case", "unclose this case"
+User wants to change case fields like title, project, area, priority, category, tags
+User wants to add comments or notes to an existing case
+User references a case ID and wants to perform any lifecycle operation on it
+
+Skill responsibilities:
+MANDATORY: Validate case state and available operations using advanced_search
+Collect all required parameters for the chosen operation sequentially
+Resolve human-readable names to FogBugz IDs using MCP tools:
+  * list_projects → resolve project names to ixProject
+  * list_areas → resolve area names to ixArea
+  * list_categories → resolve category names to ixCategory
+  * list_priorities → resolve priority names to ixPriority
+  * list_tags → resolve tag names to sTags
+  * get_person_id_by_email → resolve email to ixPersonAssignedTo
+Enforce operation-specific required parameters:
+  * assign: requires ixPersonAssignedTo
+  * resolve: requires ixStatus
+  * reopen: requires ixPersonAssignedTo
+Require explicit human approval before executing operation
+Execute manage_fogbugz_case ONLY after approval
+MANDATORY: Call get_events_of_a_case after successful execution to verify changes
+
+Hard rules:
+The agent MUST call advanced_search with the case ID FIRST to validate
+  available operations before collecting any parameters
+The agent MUST NOT execute operations not available for the current case state
+The agent MUST NOT call manage_fogbugz_case outside this skill for lifecycle operations
+The agent MUST NOT skip steps or reorder the workflow
+The agent MUST pause and ask the user when required data is missing
+The agent MUST present a full operation summary for approval before execution
+The agent MUST call get_events_of_a_case after execution to verify the changes
+The agent MUST NOT guess email addresses or IDs — always resolve using MCP tools
+
+Non-trigger conditions:
+If the user is only asking about case status or investigating a case
+  WITHOUT requesting changes, this skill MUST NOT be used
+If the user wants to send email from a case, use manage-case-email-operations skill instead
+If the user wants to create a new case, use create-case-workflow skill instead
+
+--------------------------------------------------
+SKILL: manage-case-email-operations
+--------------------------------------------------
+
+Purpose:
+This skill MUST be used whenever the user intends to send emails from
+  a FogBugz case using operations: email, reply, or forward.
+
+Trigger conditions (any of the following):
+User explicitly asks to send an email from a FogBugz case
+User says "email from this case", "reply to case", "forward this case"
+User wants to notify someone via email using a FogBugz case
+User asks to send case updates or information to external recipients
+User references a case ID and wants to perform email operations
+
+Skill responsibilities:
+MANDATORY: Validate case state and email configuration using get_events_of_a_case
+Verify sCustomerEmail and ixMailbox are set on the case (CRITICAL)
+If email configuration missing, help user set it via edit operation first
+Collect all required email parameters sequentially:
+  * sFrom (required) — sender email address
+  * sTo (required) — recipient email address
+  * sEvent (required) — email body text
+  * sSubject (highly recommended) — email subject line
+  * sCC, sBCC (optional) — additional recipients
+  * ixBugEventAttachment (optional, for forward) — attachments to include
+Validate all email addresses for proper format
+Require explicit human approval before sending email
+Execute manage_fogbugz_case ONLY after approval
+MANDATORY: Call get_events_of_a_case after successful execution to verify email was sent
+
+Hard rules:
+The agent MUST call get_events_of_a_case with the case ID FIRST to validate
+  email configuration (sCustomerEmail and ixMailbox) before collecting parameters
+The agent MUST NOT send emails if sCustomerEmail or ixMailbox are not set
+The agent MUST help user configure email fields via edit operation if missing
+The agent MUST NOT call manage_fogbugz_case outside this skill for email operations
+The agent MUST NOT skip steps or reorder the workflow
+The agent MUST double-check recipient addresses before sending
+The agent MUST present a full email summary for approval before execution
+The agent MUST call get_events_of_a_case after execution to verify the email event
+Email operations are IRREVERSIBLE — extra care is mandatory
+
+Best practices enforced by skill:
+Always recommend using FogBugz-monitored email addresses in sFrom
+For reply operations, default to sCustomerEmail if available
+Always include meaningful subject lines
+For forward, explain what content/attachments will be forwarded
+Warn user that emails cannot be unsent once executed
+
+Non-trigger conditions:
+If the user wants to edit case fields (not send email), use manage-case-lifecycle skill instead
+If the user wants to create a new case, use create-case-workflow skill instead
+If the user is only investigating case email history, use get_events_of_a_case directly
+
+--------------------------------------------------
 DECISION LOGIC: CASES vs WIKIS (MANDATORY)
 --------------------------------------------------
 

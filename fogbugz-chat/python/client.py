@@ -28,7 +28,7 @@ from agent.filesystem_tools import (
     write_block,
     write_block_function,
 )
-from agent.case_tools import create_fogbugz_case
+from agent.case_tools import create_fogbugz_case, manage_fogbugz_case
 from langgraph.checkpoint.memory import MemorySaver
 
 load_dotenv()
@@ -111,7 +111,7 @@ class MCPClient:
 
         self.agent = create_deep_agent(
             model=self.llm,
-            tools=tools + [create_fogbugz_case],
+            tools=tools + [create_fogbugz_case, manage_fogbugz_case],
             system_prompt=SYSTEM_PROMPT,
             skills=["./agent/skills/"],
             checkpointer=self.checkpointer,

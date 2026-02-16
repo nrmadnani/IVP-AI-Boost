@@ -9,7 +9,7 @@ import json
 import ast
 import time
 import xmltodict
-
+from email.utils import parseaddr
 
 def parse_bool(value: str) -> bool:
     return value.lower() == "true"
@@ -659,6 +659,8 @@ class FogBugzClient:
                         "priority": str,
                         "project": str,
                         "category": str,
+                        "correspondant_mail": str,
+                        "ixMailbox": int,
                         "events": [
                             {
                                 "ixBugEvent": str,
@@ -682,7 +684,7 @@ class FogBugzClient:
         xml_response = self._request(
             "search",
             q=f"ixBug:{case_id}",
-            cols="sTitle,sStatus,sPersonAssignedTo,sPriority,sProject,sCategory,events",
+            cols="sTitle,sStatus,sPersonAssignedTo,sPriority,sProject,sCategory,events,sCustomerEmail,ixMailbox",
         )
         root = ET.fromstring(xml_response)
 
@@ -701,6 +703,8 @@ class FogBugzClient:
                 "priority": _get_text(case, "sPriority"),
                 "project": _get_text(case, "sProject"),
                 "category": _get_text(case, "sCategory"),
+                "correspondant_mail": _get_text(case,"sCustomerEmail"),
+                "ixMailbox": int(_get_text(case, "ixMailbox")),
                 "events": [],
             }
 
@@ -1072,3 +1076,121 @@ class FogBugzClient:
             "total_hits": total_hits,
             "cases": cases,
         }
+    
+    def list_mailboxes(self) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        List all mailboxes in the FogBugz system.
+        
+        Returns:
+            Dictionary with 'mailboxes' key containing list of mailboxes with their metadata:
+            {
+                "mailboxes": [
+                    {
+                        "mailbox_id": int (ixMailbox),
+                        "email": str (sEmail),
+                        "email_user": str (sEmailUser),
+                        "template": str (sTemplate)
+                    }
+                ]
+            }
+        """
+        response_xml = self._request("listMailboxes")
+        root = ET.fromstring(response_xml)
+        
+        mailboxes_node = root.find("mailboxes")
+        if mailboxes_node is None:
+            return {"mailboxes": []}
+        
+        mailboxes = []
+        for mailbox in mailboxes_node.findall("mailbox"):
+            mailboxes.append({
+                "mailbox_id": int(mailbox.findtext("ixMailbox")),
+                "email": mailbox.findtext("sEmail", "").strip(),
+                "email_user": mailbox.findtext("sEmailUser", "").strip(),
+                "template": mailbox.findtext("sTemplate", "").strip(),
+            })
+        
+        return {"mailboxes": mailboxes}
+
+    def add_correspondant_email(self, email: str) -> Dict[str, Any]:
+        """
+        Add a correspondent email address to FogBugz.
+        
+        Args:
+            email: Valid email address to add as correspondent
+        
+        Returns:
+            Dictionary with success status:
+            {
+                "success": bool,
+                "email": str (email that was added),
+                "message": str (status message)
+            }
+        """
+        try:
+            response_xml = self._request("addEmailAddress", sFullEmail=email)
+            root = ET.fromstring(response_xml)
+            
+            # Check for error node
+            error_node = root.find("error")
+            if error_node is not None:
+                error_msg = error_node.text or "Unknown error"
+                return {
+                    "success": False,
+                    "email": email,
+                    "message": f"Error adding email: {error_msg}"
+                }
+            
+            # Empty response node means success
+            return {
+                "success": True,
+                "email": email,
+                "message": "Email address added successfully"
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "email": email,
+                "message": f"Failed to add email: {str(e)}"
+            }
+        
+    def list_correspondant_email_addresses(self) -> Dict[str, Any]:
+        """
+        List all correspondent email addresss already in FogBugz.
+        
+        Returns:
+            Dictionary with all emails list and message:
+            {
+                "emails": [
+                {"display_name": "ABC", "email_address": "abc@mail.com"}
+                {"display_name": "XYZ", "email_address": "xyz@mail.com"}],
+                ],
+                "message": str (status message)
+            }
+        """
+        try:
+            response_xml = self._request("findEmailAddress", sEmail="@")
+            root = ET.fromstring(response_xml)
+            
+            emails_node = root.find("emails")
+            emails = []
+            if emails_node is None: 
+                return {
+                    "emails": [],
+                    "message": "No emails exist in the system. Please add new email correspondants"
+                }
+            
+            for email in emails_node.findall("email"):
+                display_name, email_addr = parseaddr(email.text)
+                emails.append({"display_name": display_name, "email_address": email_addr})
+
+            return {"emails": emails, "message": "Successfully retrieved all email addresses"}
+
+        except Exception as e:
+            return {
+                "emails": [],
+                "message": f"Failed to get emails: {str(e)}"
+            }
+        
+    
