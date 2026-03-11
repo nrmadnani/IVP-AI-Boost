@@ -37,13 +37,13 @@ sys.stdin.reconfigure(encoding="utf-8")
 sys.stdout.reconfigure(encoding="utf-8")
 sys.stderr.reconfigure(encoding="utf-8")
 
-FOGBUGZ_MEMORY_DIR = "D:/IVP AI Boost/fogbugz-chat/python/agent_memory"
-ROOT_DIR = "D:/D:/IVP AI Boost/fogbugz-chat/python"
+ROOT_DIR = "D:/IVP AI Boost/fogbugz-chat/python"
 FOGBUGZ_ADV_MEMORY_FILES = [
-    f"{FOGBUGZ_MEMORY_DIR}/AGENTS.md",
-    f"{FOGBUGZ_MEMORY_DIR}/QUERY_HISTORY.md",
+    "./agent_memory/AGENT_MEMORY.md",
+    "./agent_memory/QUERY_HISTORY.md",
+    "./agent_memory/USER_PREFERENCES.md"
 ]
-FILESYSTEM_BACKEND = FilesystemBackend(root_dir=ROOT_DIR)
+FILESYSTEM_BACKEND = FilesystemBackend(root_dir=ROOT_DIR, virtual_mode=True)
 MAX_TURNS = 15   # 15 user+assistant pairs
 
 
@@ -117,6 +117,7 @@ class MCPClient:
             checkpointer=self.checkpointer,
             subagents=[fogbugz_advanced_search_agent],
             backend=FILESYSTEM_BACKEND,
+            debug=True
             
         )
         self.messages = [

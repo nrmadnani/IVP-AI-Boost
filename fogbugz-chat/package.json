@@ -1,15 +1,19 @@
 {
   "name": "fogbugz-chat",
-  "displayName": "fogbugz-chat-extension",
-  "description": "A chat interface to company's internal wikis, cases",
-  "version": "0.0.1",
+  "displayName": "IVP AI Boost",
+  "description": "A chat interface to enterprise knowledge",
+  "version": "0.0.2",
   "engines": {
     "vscode": "^1.103.0"
   },
   "categories": [
-    "Other"
+    "AI",
+    "Chat"
   ],
+  "author": {"name": "nrmadnani"},
+  "publisher": "nrmadnani",
   "activationEvents": [],
+  "icon": "./media/logo big.png",
   "main": "./out/extension.js",
   "contributes": {
     "commands": [

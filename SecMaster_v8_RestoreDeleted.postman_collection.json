@@ -1,0 +1,88 @@
+{
+  "info": {
+    "name": "IVP Security Master v8 - Restore Deleted Securities",
+    "_postman_id": "fe1e738b-37c0-44de-8ac7-9db724cc11f8",
+    "description": "Postman collection for searching deleted securities and restoring them using Security Master v8 native SecMasterService APIs.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Search Deleted Securities",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "SessionId",
+            "value": "{{SessionId}}"
+          },
+          {
+            "key": "DeviceKey",
+            "value": "{{DeviceKey}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"UserName\": \"admin\",\n    \"SecurityTypes\": [],\n    \"RequiredAttributes\": [\"Security Id\", \"Lifecycle Status\"],\n    \"Filter\": [\n        {\n            \"filterName\": \"Lifecycle Status\",\n            \"condition\": \"EQUALS\",\n            \"values\": [\"Deleted\"],\n            \"Id\": 1\n        }\n    ],\n    \"FilterOrder\": \"1\"\n}"
+        },
+        "url": {
+          "raw": "{{BaseUrl}}/SecMasterService/SearchSecurities",
+          "host": ["{{BaseUrl}}"],
+          "path": ["SecMasterService", "SearchSecurities"]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "2. Restore Security (UpdateSecurities)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "SessionId",
+            "value": "{{SessionId}}"
+          },
+          {
+            "key": "DeviceKey",
+            "value": "{{DeviceKey}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n    \"UserName\": \"admin\",\n    \"Securities\": [\n        {\n            \"SecurityId\": \"{{SecurityId}}\",\n            \"Attributes\": {\n                \"Lifecycle Status\": \"Active\"\n            }\n        }\n    ]\n}"
+        },
+        "url": {
+          "raw": "{{BaseUrl}}/SecMasterService/UpdateSecurities",
+          "host": ["{{BaseUrl}}"],
+          "path": ["SecMasterService", "UpdateSecurities"]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "BaseUrl",
+      "value": "http://your-host"
+    },
+    {
+      "key": "SessionId",
+      "value": ""
+    },
+    {
+      "key": "DeviceKey",
+      "value": ""
+    },
+    {
+      "key": "SecurityId",
+      "value": ""
+    }
+  ]
+}

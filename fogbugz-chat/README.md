@@ -1,71 +1,113 @@
-# fogbugz-chat README
+# IVP AI Boost
 
-This is the README for your extension "fogbugz-chat". After writing up a brief description, we recommend including the following sections.
+**IVP AI Boost** is an AI-powered developer productivity extension for Visual Studio Code that integrates directly with FogBugz to deliver intelligent search, structured knowledge retrieval, and automated case lifecycle management.
 
-## Features
+Built using **Model Context Protocol (MCP)** and a **deep agent architecture**, IVP AI Boost provides a unified AI interface for accessing documentation, investigating issues, and managing support workflows without leaving the development environment.
 
-Describe specific features of your extension including screenshots of your extension in action. Image paths are relative to this README file.
-
-For example if there is an image subfolder under your extension project workspace:
-
-\!\[feature X\]\(images/feature-x.png\)
-
-> Tip: Many popular extensions utilize animations. This is an excellent way to show off your extension! We recommend short, focused animations that are easy to follow.
-
-## Requirements
-
-If you have any requirements or dependencies, add a section describing those and how to install and configure them.
-
-## Extension Settings
-
-Include if your extension adds any VS Code settings through the `contributes.configuration` extension point.
-
-For example:
-
-This extension contributes the following settings:
-
-* `myExtension.enable`: Enable/disable this extension.
-* `myExtension.thing`: Set to `blah` to do something.
-
-## Known Issues
-
-Calling out known issues can help limit users opening duplicate issues against your extension.
-
-## Release Notes
-
-Users appreciate release notes as you update your extension.
-
-### 1.0.0
-
-Initial release of ...
-
-### 1.0.1
-
-Fixed issue #.
-
-### 1.1.0
-
-Added features X, Y, and Z.
+The extension connects developers to FogBugz cases, wiki documentation, and operational workflows — significantly reducing investigation time and eliminating knowledge silos.
 
 ---
 
-## Following extension guidelines
+# Overview
 
-Ensure that you've read through the extensions guidelines and follow the best practices for creating your extension.
+Enterprise development environments often suffer from fragmented knowledge sources such as bug tracking systems, documentation portals, internal wikis, and API references. Developers frequently spend valuable time switching between multiple tools to investigate issues or find technical information.
 
-* [Extension Guidelines](https://code.visualstudio.com/api/references/extension-guidelines)
+**IVP AI Boost solves this by introducing an AI-powered knowledge and workflow layer directly inside VS Code.**
 
-## Working with Markdown
+The extension consolidates:
 
-You can author your README using Visual Studio Code. Here are some useful editor keyboard shortcuts:
+- FogBugz cases  
+- Product documentation and wiki articles  
+- API documentation  
+- Historical investigations  
+- Case lifecycle operations  
 
-* Split the editor (`Cmd+\` on macOS or `Ctrl+\` on Windows and Linux).
-* Toggle preview (`Shift+Cmd+V` on macOS or `Shift+Ctrl+V` on Windows and Linux).
-* Press `Ctrl+Space` (Windows, Linux, macOS) to see a list of Markdown snippets.
+into a **single intelligent interface** accessible within the editor.
 
-## For more information
+---
 
-* [Visual Studio Code's Markdown Support](http://code.visualstudio.com/docs/languages/markdown)
-* [Markdown Syntax Reference](https://help.github.com/articles/markdown-basics/)
+# Key Features
 
-**Enjoy!**
+## Intelligent Knowledge Search
+
+Search across multiple FogBugz knowledge sources directly from VS Code.
+
+Supported sources include:
+
+- Product documentation and wiki articles  
+- REST API documentation  
+- Technical implementation references  
+- Historical FogBugz cases  
+- Projects, areas, and contributors  
+
+The AI assistant automatically determines whether to retrieve information from documentation or historical cases to provide the most relevant and reliable answer.
+
+---
+
+## Issue Investigation
+
+IVP AI Boost significantly accelerates debugging and investigation by enabling developers to:
+
+- Search for known bugs and regressions  
+- Match error messages with historical cases  
+- Discover recent code changes  
+- Identify existing fixes or workarounds  
+
+This reduces duplicate investigations and helps teams resolve issues faster.
+
+---
+
+## Case Lifecycle Automation
+
+Developers can manage FogBugz cases directly from within VS Code.
+
+Supported operations include:
+
+- Creating new cases  
+- Assigning or reassigning cases  
+- Updating case fields and metadata  
+- Resolving or reopening issues  
+- Adding investigation notes and comments  
+
+All workflows follow structured validation steps and require explicit confirmation before execution to ensure safe and controlled operations.
+
+---
+
+## Email & Communication Workflow
+
+IVP AI Boost supports case-related communication workflows such as:
+
+- Sending emails from a case  
+- Replying to customer emails  
+- Forwarding case information  
+- Structured communication approvals  
+
+This ensures communication remains consistent, auditable, and fully integrated within the FogBugz case lifecycle.
+
+---
+
+# Architecture
+
+IVP AI Boost uses a **deep agent architecture built on the Model Context Protocol (MCP)**.  
+The AI agent interprets user intent, retrieves knowledge from FogBugz systems, and executes structured workflows through MCP tools.
+
+```mermaid
+flowchart TD
+
+Developer --> VSCodeExtension
+VSCodeExtension --> AIAgent
+
+AIAgent --> FogBugzCases
+AIAgent --> FogBugzWikis
+AIAgent --> MCPTools
+
+MCPTools --> CaseSearch
+MCPTools --> CaseLifecycle
+MCPTools --> EmailOperations
+MCPTools --> WikiRetrieval
+
+CaseSearch --> FogBugzAPI
+CaseLifecycle --> FogBugzAPI
+EmailOperations --> FogBugzAPI
+WikiRetrieval --> FogBugzAPI
+```
