@@ -44,3 +44,5 @@ List all wikis
 - User intent: Check cases for Security Master file attachment API support
 - Subqueries: Search for cases mentioning attach/upload file in create/update security
 - Executed queries: advanced_search(query="Security Master attach file create update security file upload", max_results=20)
+- User intent: Summarize recent Security Master related cases
+- User intent: Fetch and summarize Security Master slowness cases; Executed get_events_of_a_case for 9 cases; Result: performance issues mainly in BBG pulls, secref runs, NTN sync; Follow-up: summarization and theme extraction.

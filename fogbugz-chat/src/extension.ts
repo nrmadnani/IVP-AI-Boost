@@ -7,9 +7,9 @@ let mcpProcess: MCPProcess | null = null;
 let outputChannel: vscode.OutputChannel;
 
 export function activate(context: vscode.ExtensionContext) {
-	console.log('FogBugz Chat extension activated');
+	console.log('Othisi Chat extension activated');
 	// Create output channel for debugging
-	outputChannel = vscode.window.createOutputChannel('FogBugz Chat');
+	outputChannel = vscode.window.createOutputChannel('Othisi Chat');
 	context.subscriptions.push(outputChannel);
 
 	// Register the webview view provider
@@ -17,7 +17,7 @@ export function activate(context: vscode.ExtensionContext) {
 	provider.clearHistory(); // Clear history on activation to start fresh
 	context.subscriptions.push(
 		vscode.window.registerWebviewViewProvider(
-			'fogbugz-chat.chatView',
+			'othisi-chat.chatView',
 			provider,
 			{
 				webviewOptions: {
@@ -28,9 +28,9 @@ export function activate(context: vscode.ExtensionContext) {
 	);
 
 	const disposable = vscode.commands.registerCommand(
-		'fogbugz-chat.startChat',
+		'othisi-chat.startChat',
 		() => {
-			vscode.commands.executeCommand('fogbugz-chat.chatView.focus');
+			vscode.commands.executeCommand('othisi-chat.chatView.focus');
 		}
 	);
 
@@ -40,7 +40,7 @@ export function activate(context: vscode.ExtensionContext) {
 class ChatViewProvider implements vscode.WebviewViewProvider {
 	private _view?: vscode.WebviewView;
 	private _context: vscode.ExtensionContext;
-	private static readonly CHAT_HISTORY_KEY = 'fogbugz.chatHistory';
+	private static readonly CHAT_HISTORY_KEY = 'othisi.chatHistory';
 
 	constructor(
 		private readonly _extensionUri: vscode.Uri,
@@ -122,7 +122,7 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
 				
 				// If it's the "new conversation" message, clear local history
 				if (message.trim().includes('🧹 New conversation started')) {
-					this.clearHistory('🧹 New conversation started. (long-term memory preserved).'); 
+					this.clearHistory('🧹 New conversation started.'); 
 				}
 				
 				// Save assistant message to history
@@ -132,7 +132,7 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
 			outputChannel.appendLine('MCP process started successfully');
 		} catch (error) {
 			outputChannel.appendLine(`Failed to start MCP process: ${error}`);
-			vscode.window.showErrorMessage('Failed to start FogBugz Chat MCP process');
+			vscode.window.showErrorMessage('Failed to start Othisi Chat MCP process');
 		}
 	}
 

@@ -28,3 +28,5 @@ SecMaster REST Endpoint (HTTP REST only)
 - Preference: Always return HTTP REST endpoints and REST examples for any APIs referenced in FogBugz documentation.
 User prefers detailed Security Master 8.0 API documentation in all responses.
 - User preference: User uses EDM exclusively (prefer EDM-first answers).
+- User preference: Always include flowchart diagrams using Mermaid when possible.
+- User defines "Facilities" as synonym for "Securities" for future conversations.

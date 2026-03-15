@@ -116,8 +116,7 @@ class MCPClient:
             skills=["./agent/skills/"],
             checkpointer=self.checkpointer,
             subagents=[fogbugz_advanced_search_agent],
-            backend=FILESYSTEM_BACKEND,
-            debug=True
+            backend=FILESYSTEM_BACKEND
             
         )
         self.messages = [

@@ -1,7 +1,7 @@
 {
-  "name": "fogbugz-chat",
-  "displayName": "IVP AI Boost",
-  "description": "A chat interface to enterprise knowledge",
+  "name": "othisi-chat",
+  "displayName": "IVP Othisi",
+  "description": "An interface to enterprise knowledge for productivity boost",
   "version": "0.0.2",
   "engines": {
     "vscode": "^1.103.0"
@@ -13,29 +13,29 @@
   "author": {"name": "nrmadnani"},
   "publisher": "nrmadnani",
   "activationEvents": [],
-  "icon": "./media/logo big.png",
+  "icon": "./media/icon main.png",
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "fogbugz-chat.startChat",
-        "title": "FogBugz: Start Chat"
+        "command": "othisi-chat.startChat",
+        "title": "Othisi: Start Chat"
       }
     ],
     "viewsContainers": {
       "activitybar": [
         {
-          "id": "fogbugz-chat-sidebar",
-          "title": "FogBugz Chat",
+          "id": "othisi-chat-sidebar",
+          "title": "Othisi Chat",
           "icon": "resources/icon.svg"
         }
       ]
     },
     "views": {
-      "fogbugz-chat-sidebar": [
+      "othisi-chat-sidebar": [
         {
           "type": "webview",
-          "id": "fogbugz-chat.chatView",
+          "id": "othisi-chat.chatView",
           "name": "Chat"
         }
       ]
