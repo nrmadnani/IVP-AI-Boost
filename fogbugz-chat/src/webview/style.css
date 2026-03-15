@@ -1,15 +1,17 @@
 :root {
-  --bg: var(--vscode-editor-background);
-  --fg: var(--vscode-editor-foreground);
-  --border: var(--vscode-editorWidget-border);
-  --input-bg: var(--vscode-input-background);
-  --input-fg: var(--vscode-input-foreground);
-  --button-bg: var(--vscode-button-background);
-  --button-fg: var(--vscode-button-foreground);
-  --user-bg: var(--vscode-textBlockQuote-background);
-  --assistant-bg: var(--vscode-editorWidget-background);
-  --code-bg: var(--vscode-textCodeBlock-background);
-  --link-color: var(--vscode-textLink-foreground);
+  /* Added fallbacks in case VS Code vars take a millisecond to load */
+  --bg: var(--vscode-editor-background, #1e1e1e);
+  --fg: var(--vscode-editor-foreground, #cccccc);
+  --border: var(--vscode-editorWidget-border, #454545);
+  --input-bg: var(--vscode-input-background, #3c3c3c);
+  --input-fg: var(--vscode-input-foreground, #cccccc);
+  --button-bg: var(--vscode-button-background, #0e639c);
+  --button-fg: var(--vscode-button-foreground, #ffffff);
+  --user-bg: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.1));
+  --assistant-bg: var(--vscode-editorWidget-background, #252526);
+  --code-bg: var(--vscode-textCodeBlock-background, rgba(0, 0, 0, 0.3));
+  --link-color: var(--vscode-textLink-foreground, #3794ff);
+  --shadow: rgba(0, 0, 0, 0.36);
 }
 
 * {
@@ -21,34 +23,46 @@ body {
   padding: 0;
   background: var(--bg);
   color: var(--fg);
-  font-family: var(--vscode-font-family);
-  font-size: var(--vscode-font-size);
+  font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
+  font-size: var(--vscode-font-size, 13px);
   display: flex;
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
 }
 
-/* CHAT CONTAINER */
+/* --- ANIMATIONS --- */
+@keyframes messagePopIn {
+  0% { opacity: 0; transform: translateY(12px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
 
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* --- CHAT CONTAINER --- */
 #chat {
   flex: 1;
   overflow-y: auto;
-  padding: 14px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
+  scroll-behavior: smooth;
 }
 
-/* MESSAGES */
-
+/* --- MESSAGES --- */
 .message {
-  padding: 10px 12px;
+  padding: 12px 14px;
   border-radius: 8px;
-  max-width: 100%;
-  line-height: 1.55;
+  max-width: 95%; /* Prevent super wide text blocks */
+  line-height: 1.6;
   font-size: 13px;
   position: relative;
+  animation: messagePopIn 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
 .user {
@@ -56,290 +70,223 @@ body {
   background: var(--user-bg);
   border: 1px solid var(--border);
   white-space: pre-wrap;
+  border-bottom-right-radius: 2px; /* Chat bubble tail effect */
 }
 
 .assistant {
   align-self: flex-start;
   background: var(--assistant-bg);
   border: 1px solid var(--border);
+  border-bottom-left-radius: 2px;
 }
 
 .system {
   align-self: center;
   background: transparent;
   border: none;
-  font-size: 12px;
-  opacity: 0.65;
+  font-size: 11.5px;
+  opacity: 0.6;
   font-style: italic;
+  box-shadow: none;
+  padding: 4px 8px;
 }
 
-/* ASSISTANT MESSAGE WRAPPER */
-
-.assistant-message-wrapper {
-  position: relative;
-}
-
-.assistant:hover {
-  opacity: 1;
-}
-/* assistant content wrapper */
+/* --- ASSISTANT MESSAGE WRAPPER --- */
 .assistant-message-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
-/* toolbar container */
-/* MESSAGE TOOLBAR */
-
+/* --- TOOLBAR --- */
 .message-toolbar {
   display: flex;
-  gap: 4px;
+  gap: 6px;
   align-items: center;
   justify-content: flex-end;
-  margin-top: 4px;
-
-  /* always visible but subtle */
-  opacity: 0.45;
-  transition: opacity 0.15s ease;
+  margin-top: 6px;
+  
+  /* Always visible but subtle */
+  opacity: 0.4; 
+  transition: opacity 0.2s ease;
 }
 
-/* only toolbar hover increases opacity */
-.message-toolbar:hover {
-  opacity: 1;
+/* Bring to full opacity when the user hovers anywhere over the message */
+.message:hover .message-toolbar {
+  opacity: 1; 
 }
-
-/* TOOLBAR BUTTON */
 
 .toolbar-btn {
-  width: 26px;
-  height: 26px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
+  width: 28px;
+  height: 28px;
   border-radius: 4px;
   border: none;
   cursor: pointer;
-
   background: transparent;
-  color: var(--vscode-editor-foreground);
-
-  padding: 0;
+  color: var(--fg);
+  
+  /* Reset default button padding to guarantee center alignment */
+  padding: 0; 
+  
+  opacity: 0.8;
+  transition: all 0.15s ease;
 }
 
-/* fix codicon alignment */
-
 .toolbar-btn.codicon {
-  font-size: 16px;
-  line-height: 1;
-
+  font-size: 15px;
   display: flex;
   align-items: center;
   justify-content: center;
-  text-align: center;
+  
+  /* Force line-height to 1 so the font glyph doesn't sit too high or low */
+  line-height: 1; 
 }
 
-/* button hover does NOT affect message background */
-
 .toolbar-btn:hover {
-  background: var(--vscode-toolbar-hoverBackground);
+  background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
   opacity: 1;
 }
 
-/* MARKDOWN CONTENT */
-
-.assistant-content {
-  font-family: var(--vscode-font-family);
-  padding-right: 26px;
+.toolbar-btn:active {
+  transform: translateY(1px); /* Click feedback */
 }
 
-.assistant-content p {
-  margin: 0 0 8px 0;
-}
+/* --- MARKDOWN CONTENT --- */
+.assistant-content p { margin: 0 0 10px 0; }
+.assistant-content p:last-child { margin-bottom: 0; }
 
-.assistant-content p:last-child {
-  margin-bottom: 0;
-}
-
-.assistant-content h1,
-.assistant-content h2,
-.assistant-content h3,
-.assistant-content h4,
-.assistant-content h5,
-.assistant-content h6 {
-  margin: 12px 0 8px 0;
+.assistant-content h1, .assistant-content h2,
+.assistant-content h3, .assistant-content h4 {
+  margin: 16px 0 10px 0;
   font-weight: 600;
+  color: var(--vscode-editor-foreground);
 }
 
-.assistant-content h1 {
-  font-size: 1.45em;
-}
-.assistant-content h2 {
-  font-size: 1.25em;
-}
-.assistant-content h3 {
-  font-size: 1.1em;
+.assistant-content ul, .assistant-content ol {
+  margin: 10px 0;
+  padding-left: 24px;
 }
 
-/* LISTS */
-
-.assistant-content ul,
-.assistant-content ol {
-  margin: 8px 0;
-  padding-left: 22px;
-}
-
-.assistant-content li {
-  margin: 4px 0;
-}
-
-/* LINKS */
+.assistant-content li { margin: 4px 0; }
+.assistant-content li::marker { color: var(--vscode-textLink-foreground); }
 
 .assistant-content a {
   color: var(--link-color);
   text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-color 0.2s;
 }
 
 .assistant-content a:hover {
-  text-decoration: underline;
+  border-bottom-color: var(--link-color);
 }
 
-/* INLINE CODE */
-
+/* Inline Code */
 .assistant-content code {
   background: var(--code-bg);
   border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: 2px 6px;
-  font-family: var(--vscode-editor-font-family);
-  font-size: 12px;
+  border-radius: 4px;
+  padding: 2px 5px;
+  font-family: var(--vscode-editor-font-family, Consolas, monospace);
+  font-size: 0.9em;
+  color: var(--vscode-textPreformat-foreground, #d7ba7d);
 }
 
-/* CODE BLOCKS */
-
+/* Code Blocks */
 .assistant-content pre {
   background: var(--code-bg);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 12px;
-  margin: 10px 0;
+  padding: 14px;
+  margin: 12px 0;
   overflow-x: auto;
   position: relative;
 }
 
 .assistant-content pre code {
   background: transparent;
-  padding: 0;
   border: none;
-  font-family: var(--vscode-editor-font-family);
-  font-size: 12px;
-  line-height: 1.55;
+  padding: 0;
+  color: inherit;
 }
 
-/* CODE BLOCK TOOLBAR */
-
-.code-block-wrapper {
-  position: relative;
-}
+/* Code Block Copy Button */
+.code-block-wrapper { position: relative; }
 
 .copy-button {
   position: absolute;
-  top: 6px;
-  right: 6px;
-
-  background: var(--button-bg);
-  color: var(--button-fg);
-
-  border: none;
+  top: 8px;
+  right: 8px;
+  background: var(--vscode-editorWidget-background);
+  color: var(--fg);
+  border: 1px solid var(--border);
   border-radius: 4px;
-
-  padding: 4px 8px;
+  padding: 4px 10px;
   font-size: 11px;
   cursor: pointer;
-
-  opacity: 0.7;
-  transition: opacity 0.15s ease;
+  opacity: 0;
+  transition: all 0.2s ease;
+  z-index: 10;
 }
 
-.copy-button:hover {
+.code-block-wrapper:hover .copy-button {
   opacity: 1;
 }
 
-.copy-button.copied {
-  background: #4caf50;
+.copy-button:hover {
+  background: var(--button-bg);
+  color: var(--button-fg);
+  border-color: transparent;
 }
 
-/* TABLES */
+.copy-button.copied {
+  background: #388e3c; /* Success green */
+  color: white;
+  border-color: transparent;
+}
 
+/* Blockquotes */
+.assistant-content blockquote {
+  border-left: 4px solid var(--vscode-textLink-foreground);
+  padding-left: 14px;
+  margin: 12px 0;
+  background: rgba(127, 127, 127, 0.05);
+  padding-top: 8px;
+  padding-bottom: 8px;
+  border-radius: 0 4px 4px 0;
+}
+
+/* Tables */
 .assistant-content table {
   border-collapse: collapse;
   width: 100%;
-  margin: 12px 0;
-  font-size: 13px;
+  margin: 14px 0;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px var(--border); /* Better border styling */
 }
 
-.assistant-content table th,
-.assistant-content table td {
+.assistant-content th, .assistant-content td {
+  padding: 10px 12px;
   border: 1px solid var(--border);
-  padding: 8px 10px;
-  text-align: left;
 }
 
-.assistant-content table th {
-  background: var(--code-bg);
-  font-weight: 600;
-}
+.assistant-content th { background: rgba(127, 127, 127, 0.1); }
 
-.assistant-content table tr:nth-child(even) {
-  background: rgba(255, 255, 255, 0.03);
-}
-
-/* BLOCKQUOTE */
-
-.assistant-content blockquote {
-  border-left: 3px solid var(--border);
-  padding-left: 12px;
-  margin: 8px 0;
-  opacity: 0.85;
-}
-
-/* HR */
-
-.assistant-content hr {
-  border: none;
-  border-top: 1px solid var(--border);
-  margin: 16px 0;
-}
-
-/* MERMAID */
-
-.mermaid {
-  background: var(--assistant-bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 12px;
-  margin: 12px 0;
-  overflow-x: auto;
-}
-
-/* INPUT AREA */
-
+/* --- INPUT AREA --- */
 #input-container {
   display: flex;
-  gap: 6px;
-  padding: 8px;
+  gap: 10px;
+  padding: 12px 14px;
   border-top: 1px solid var(--border);
-  background: var(--bg);
+  background: var(--vscode-editorWidget-background);
   align-items: flex-end;
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
 }
 
 #input-wrapper {
   flex: 1;
   position: relative;
-  display: flex;
-  flex-direction: column;
 }
 
 #input {
@@ -347,171 +294,274 @@ body {
   background: var(--input-bg);
   color: var(--input-fg);
   border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 6px 8px;
+  border-radius: 6px;
+  padding: 10px 12px;
   font-family: inherit;
   font-size: 13px;
-  order: 2;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 #input:focus {
-  outline: 1px solid var(--vscode-focusBorder);
+  outline: none;
+  border-color: var(--vscode-focusBorder);
+  box-shadow: 0 0 0 1px var(--vscode-focusBorder);
 }
 
-/* COMMAND MENU */
+button {
+  background: var(--button-bg);
+  color: var(--button-fg);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 9px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
 
+button:hover { opacity: 0.9; transform: translateY(-1px); }
+button:active { transform: translateY(1px); opacity: 1; }
+
+/* --- COMMAND MENU --- */
 #command-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
   width: 100%;
   background: var(--vscode-editorWidget-background);
   border: 1px solid var(--border);
-  border-radius: 4px;
-  margin-bottom: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px var(--shadow);
   display: none;
   z-index: 1000;
-  order: 1;
+  overflow: hidden;
+  animation: fadeIn 0.2s ease;
 }
 
-#command-menu.visible {
-  display: block;
+#command-menu.visible { 
+  display: block; 
 }
 
 .command-item {
-  padding: 8px 12px;
+  padding: 10px 14px;
   cursor: pointer;
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  border-bottom: 1px solid var(--border);
+  flex-direction: row; 
+  justify-content: space-between; 
+  align-items: center;
+  gap: 16px;
+  border-bottom: 1px solid rgba(127, 127, 127, 0.1);
 }
 
-.command-item:last-child {
-  border-bottom: none;
-}
-
-.command-item:hover,
-.command-item.selected {
+.command-item.selected, .command-item:hover {
   background: var(--vscode-list-hoverBackground);
 }
 
 .command-name {
   font-size: 13px;
-  font-weight: 500;
-}
-
-.command-description {
-  font-size: 11px;
-  color: var(--vscode-descriptionForeground);
-  opacity: 0.8;
-}
-
-/* BUTTON */
-
-button {
-  background: var(--button-bg);
-  color: var(--button-fg);
-  border: none;
-  border-radius: 4px;
-  padding: 6px 12px;
-  cursor: pointer;
-  font-size: 13px;
+  font-weight: 600;
+  color: var(--vscode-textLink-foreground); 
   white-space: nowrap;
 }
 
-button:hover {
-  opacity: 0.9;
+.command-description {
+  font-size: 12px;
+  color: var(--vscode-descriptionForeground);
+  opacity: 0.8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis; 
 }
 
-/* SCROLLBAR */
-
-#chat::-webkit-scrollbar {
-  width: 10px;
-}
-
-#chat::-webkit-scrollbar-track {
-  background: var(--bg);
-}
-
-#chat::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 5px;
-}
-
-#chat::-webkit-scrollbar-thumb:hover {
-  background: var(--vscode-scrollbarSlider-hoverBackground);
-}
-
-/* CODE GENERATION TEMPLATE */
-
-.code-template {
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  background: var(--assistant-bg);
-}
-
-.code-template h3 {
-  margin: 0 0 4px 0;
-  font-size: 14px;
-}
-
-.template-row {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.product-block {
-  border: 1px dashed var(--border);
-  padding: 10px;
-  border-radius: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.endpoint-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr 120px;
-  gap: 6px;
-}
-
+/* --- BUTTON SPACING & HIERARCHY --- */
 .template-actions {
   display: flex;
   justify-content: flex-end;
-  margin-top: 6px;
+  gap: 10px; 
+  margin-top: 12px;
 }
 
-/* SEARCHABLE PRODUCT DROPDOWN */
-
-.product-select-wrapper {
-  position: relative;
+/* Make "Cancel" look like a secondary button */
+#cancel-template-btn {
+  background: transparent;
+  color: var(--fg);
+  border: 1px solid var(--border);
 }
 
-.product-search {
+#cancel-template-btn:hover {
+  background: rgba(127, 127, 127, 0.1);
+}
+
+/* Make "Add Product" subtle so it doesn't compete with "Preview Prompt" */
+#add-product {
+  align-self: flex-start; 
+  margin-top: 4px;
+  background: var(--vscode-button-secondaryBackground, rgba(127, 127, 127, 0.2));
+  color: var(--vscode-button-secondaryForeground, var(--fg));
+  border: 1px solid transparent;
+}
+
+#add-product:hover {
+  background: rgba(127, 127, 127, 0.3);
+}
+
+/* --- VISUAL ARROWS FOR PRODUCT FLOW --- */
+#products-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px; 
+}
+
+.product-block {
+  position: relative; 
+  border: 1px solid var(--border);
+  background: var(--bg);
+  padding: 12px;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Draw a downward arrow after every block EXCEPT the last one */
+.product-block:not(:last-child)::after {
+  content: "↓";
+  position: absolute;
+  bottom: -22px; 
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 18px;
+  font-weight: bold;
+  color: var(--vscode-textLink-foreground); 
+}
+
+/* --- TYPING INDICATOR STYLES --- */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: transparent;
+  width: fit-content;
+  align-self: flex-start;
+  margin-bottom: 10px;
+}
+
+.typing-dot {
+  width: 6px;
+  height: 6px;
+  background-color: var(--vscode-descriptionForeground);
+  border-radius: 50%;
+  animation: typingBounce 1.4s infinite ease-in-out both;
+}
+
+.typing-dot:nth-child(1) { animation-delay: -0.32s; }
+.typing-dot:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes typingBounce {
+  0%, 80%, 100% { transform: scale(0); opacity: 0.5; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+/* --- SCROLLBAR --- */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(127, 127, 127, 0.3);
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover { background: rgba(127, 127, 127, 0.5); }
+
+/* --- CODE GENERATION TEMPLATE (NEW) --- */
+/* Target the message bubble specifically when it contains the template to ensure it stretches */
+.message.assistant:has(.code-template) {
+  width: 100%;
+  max-width: 100%;
+}
+
+.code-template {
+  border: 1px solid var(--vscode-button-background);
+  border-radius: 6px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: rgba(14, 99, 156, 0.05); 
+  
+  /* RESPONSIVE FIX: Force the container to expand */
+  width: 1200px; 
+  max-width: 100%;
+}
+
+.code-template h3 { margin: 0 0 8px 0; color: var(--vscode-textLink-foreground); }
+
+/* The new textarea for reviewing the prompt */
+#prompt-preview-text {
+  width: 100%;
+  min-height: 220px;
+  padding: 12px;
+  background: var(--input-bg);
+  color: var(--input-fg);
+  border: 1px solid var(--vscode-focusBorder);
+  border-radius: 6px;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+  margin-bottom: 10px;
+}
+
+#prompt-preview-text:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 1px var(--vscode-focusBorder);
+}
+
+/* Selectors, inputs inside template */
+select, .product-search, .endpoint-name {
   background: var(--input-bg);
   color: var(--input-fg);
   border: 1px solid var(--border);
   border-radius: 4px;
-  padding: 5px 6px;
+  padding: 8px;
   font-size: 13px;
+  width: 100%;
+}
+
+select:focus, .product-search:focus, .endpoint-name:focus {
+  outline: none;
+  border-color: var(--vscode-focusBorder);
+}
+
+.product-block {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  padding: 12px;
+  border-radius: 6px;
+  gap: 10px;
+}
+
+.delete-btn { color: var(--vscode-errorForeground); background: transparent; padding: 4px; }
+.delete-btn:hover { background: rgba(244, 135, 113, 0.1); transform: none; }
+
+/* --- SEARCHABLE PRODUCT DROPDOWN --- */
+.product-select-wrapper {
+  position: relative;
+  width: 100%;
 }
 
 .product-dropdown {
   position: absolute;
-  top: 100%;
+  top: calc(100% + 4px); /* Float slightly below the input */
   left: 0;
   right: 0;
-  max-height: 200px;
-  overflow-y: auto;
+  max-height: 180px; /* Force it to a manageable height */
+  overflow-y: auto;  /* Add a scrollbar if items exceed the height */
   background: var(--vscode-editorWidget-background);
   border: 1px solid var(--border);
   border-radius: 4px;
   z-index: 50;
-  display: none;
+  display: none; /* Hide by default */
+  box-shadow: 0 4px 12px var(--shadow);
 }
 
 .product-dropdown.visible {
@@ -519,53 +569,42 @@ button:hover {
 }
 
 .product-option {
-  padding: 6px 8px;
+  padding: 8px 10px;
   cursor: pointer;
   font-size: 13px;
+  border-bottom: 1px solid rgba(127, 127, 127, 0.1);
+}
+
+.product-option:last-child {
+  border-bottom: none;
 }
 
 .product-option:hover {
   background: var(--vscode-list-hoverBackground);
 }
 
-/* delete icons */
-
-.delete-btn {
-  cursor: pointer;
-  font-size: 12px;
-  opacity: 0.6;
-  border: none;
-  background: none;
+/* --- ENDPOINT ROW FIX --- */
+.endpoints-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
-
-.delete-btn:hover {
-  opacity: 1;
-}
-
-/* endpoint row */
 
 .endpoint-row {
   display: flex;
-  gap: 6px;
-  align-items: center;
+  flex-direction: row;
+  align-items: center; /* Centers the X perfectly with the input */
+  gap: 8px;
+  width: 100%;
 }
 
-.endpoint-row input {
-  flex: 1;
+.endpoint-row .endpoint-name {
+  flex: 1; /* Tells the input to stretch and fill remaining space */
+  width: auto; /* Overrides the 100% width so it shares the row */
+  margin: 0;
 }
 
-/* product header */
-
-.product-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 13px;
-}
-
-/* add buttons */
-
-.template-add {
-  margin-top: 4px;
-  font-size: 12px;
+.endpoint-row .delete-endpoint {
+  flex-shrink: 0; /* Prevents the 'X' button from ever getting squished */
+  padding: 4px 8px;
 }

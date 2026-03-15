@@ -6,6 +6,8 @@ const commandMenu = document.getElementById("command-menu");
 let selectedCommandIndex = -1;
 let codeTemplateActive = false;
 let codeTemplateReady = false;
+let typingIndicatorElement = null;
+
 
 const commands = [
   { name: "/new", description: "Start a new conversation" },
@@ -363,64 +365,6 @@ function renderMermaid(container) {
   }
 }
 
-function send(templatePrompt = null) {
-
-  let text = templatePrompt !== null ? templatePrompt : input.value.trim();
-
-  if (!text && !templatePrompt) return;
-
-  hideCommandMenu();
-
-  const isTemplatePrompt = templatePrompt !== null;
-
-  /* HANDLE MAGIC COMMAND */
-
-  if (!isTemplatePrompt && text.toLowerCase() === "/generate-code") {
-
-    renderCodeTemplate();
-
-    codeTemplateActive = true;
-    codeTemplateReady = false;
-
-    input.value = "";
-
-    return;
-  }
-
-  /* BLOCK SEND WHILE TEMPLATE IS OPEN */
-
-  if (codeTemplateActive && !codeTemplateReady) {
-
-    addMessage(
-      "Complete the Code Generation template before sending.",
-      "system"
-    );
-
-    input.value = "";
-
-    return;
-  }
-
-  /* RESET TEMPLATE FLAGS AFTER PROMPT BUILT */
-
-  if (codeTemplateReady) {
-    codeTemplateActive = false;
-    codeTemplateReady = false;
-  }
-
-  /* DISPLAY MESSAGE */
-
-  addMessage(text, "user");
-
-  /* AGENT TRIGGER (ONLY PLACE) */
-
-  vscode.postMessage({
-    type: "userMessage",
-    text
-  });
-
-  input.value = "";
-}
 function renderCodeTemplate() {
   codeTemplateActive = true;
   codeTemplateReady = false;
@@ -428,7 +372,6 @@ function renderCodeTemplate() {
   const div = document.createElement("div");
   div.className = "message assistant";
 
-  // Using inline styles for the preview layout, move them to your CSS if preferred
   div.innerHTML = `
   <div class="code-template">
     <h3>Code Generation Workflow</h3>
@@ -446,6 +389,8 @@ function renderCodeTemplate() {
       </div>
 
       <div id="products-container"></div>
+
+      <div id="template-error" style="color: var(--vscode-errorForeground); font-size: 12px; margin: 4px 0; display: none; font-weight: 500;"></div>
 
       <button id="add-product" style="margin-bottom: 10px;">Add Product</button>
 
@@ -475,6 +420,89 @@ function renderCodeTemplate() {
   chat.scrollTop = chat.scrollHeight;
 }
 
+
+// Ensure you accept the showError parameter here!
+function attachProductHandlers(block, showError) {
+  const endpointsContainer = block.querySelector(".endpoints-container");
+
+  /* ADD FUNCTIONALITY */
+  block.querySelector(".add-endpoint").onclick = () => {
+    if (
+      !isEndpointValid(endpointsContainer) &&
+      endpointsContainer.children.length
+    ) {
+      // Use inline error instead of addMessage
+      showError("Fill the current functionality before adding another.");
+      return;
+    }
+
+    const row = document.createElement("div");
+    row.innerHTML = createEndpointRow();
+    const el = row.firstElementChild;
+    endpointsContainer.appendChild(el);
+
+    /* delete functionality */
+    el.querySelector(".delete-endpoint").onclick = () => {
+      el.remove();
+    };
+  };
+
+  /* delete product */
+  block.querySelector(".delete-product").onclick = () => {
+    block.remove();
+  };
+}
+
+function send(templatePrompt = null) {
+  let text = templatePrompt !== null ? templatePrompt : input.value.trim();
+
+  if (!text && !templatePrompt) return;
+
+  hideCommandMenu();
+
+  const isTemplatePrompt = templatePrompt !== null;
+
+  /* HANDLE MAGIC COMMAND */
+  if (!isTemplatePrompt && text.toLowerCase() === "/generate-code") {
+    renderCodeTemplate();
+    codeTemplateActive = true;
+    codeTemplateReady = false;
+    input.value = "";
+    return;
+  }
+
+  /* BLOCK SEND WHILE TEMPLATE IS OPEN */
+  if (codeTemplateActive && !codeTemplateReady) {
+    const errorMsg = "Complete the Code Generation template before sending.";
+    const lastMsg = chat.lastElementChild;
+    
+    // Check if the last message is already this warning to prevent spam!
+    if (!lastMsg || lastMsg.textContent !== errorMsg) {
+      addMessage(errorMsg, "system");
+    }
+    
+    input.value = "";
+    return;
+  }
+
+  /* RESET TEMPLATE FLAGS AFTER PROMPT BUILT */
+  if (codeTemplateReady) {
+    codeTemplateActive = false;
+    codeTemplateReady = false;
+  }
+
+  /* DISPLAY MESSAGE */
+  addMessage(text, "user");
+
+  /* AGENT TRIGGER */
+  vscode.postMessage({
+    type: "userMessage",
+    text
+  });
+  
+  input.value = "";
+  showTypingIndicator();
+}
 
 function isEndpointValid(container) {
   const rows = container.querySelectorAll(".endpoint-row");
@@ -551,25 +579,35 @@ ${createProductSelector()}
 `;
 }
 
+
 function initializeTemplateEvents(root) {
   const productsContainer = root.querySelector("#products-container");
   const addProductBtn = root.querySelector("#add-product");
+  const errorDiv = root.querySelector("#template-error"); // Grab the new error div
   
   const formSection = root.querySelector("#template-form-section");
   const previewSection = root.querySelector("#template-preview-section");
   const previewText = root.querySelector("#prompt-preview-text");
 
-  /* ADD PRODUCT (Unchanged logic) */
+  // NEW: Helper function to show errors inline without spamming chat
+  function showError(msg) {
+    errorDiv.textContent = msg;
+    errorDiv.style.display = "block";
+    // Auto-hide the error after 3.5 seconds
+    setTimeout(() => { 
+      errorDiv.style.display = "none"; 
+    }, 3500);
+  }
+
+  /* ADD PRODUCT */
   addProductBtn.onclick = () => {
     const blocks = productsContainer.querySelectorAll(".product-block");
 
     if (blocks.length) {
       const last = blocks[blocks.length - 1];
       if (!isProductValid(last)) {
-        addMessage(
-          "Finish selecting a product and at least one functionality before adding another.",
-          "system"
-        );
+        // Use inline error instead of addMessage
+        showError("Finish selecting a product and at least one functionality before adding another.");
         return;
       }
     }
@@ -580,7 +618,7 @@ function initializeTemplateEvents(root) {
     productsContainer.appendChild(block);
 
     initializeProductSearch(block);
-    attachProductHandlers(block);
+    attachProductHandlers(block, showError); // Pass the error helper down
   };
 
   /* STEP 1: PREVIEW PROMPT */
@@ -588,16 +626,13 @@ function initializeTemplateEvents(root) {
     const prompt = buildPrompt(root);
 
     if (!prompt) {
-      addMessage("Please complete product and functionality fields.", "system");
+      showError("Please complete product and functionality fields.");
       return;
     }
 
-    // Populate textarea and swap visibility
     previewText.value = prompt;
     formSection.style.display = "none";
     previewSection.style.display = "block";
-    
-    // Scroll to the bottom so the user sees the preview box
     chat.scrollTop = chat.scrollHeight;
   };
 
@@ -608,7 +643,7 @@ function initializeTemplateEvents(root) {
     chat.scrollTop = chat.scrollHeight;
   };
 
-  /* CANCEL WORKFLOW entirely */
+  /* CANCEL WORKFLOW */
   root.querySelector("#cancel-template-btn").onclick = () => {
     codeTemplateActive = false;
     codeTemplateReady = false;
@@ -621,58 +656,16 @@ function initializeTemplateEvents(root) {
     const finalPrompt = previewText.value.trim();
     
     if (!finalPrompt) {
-        addMessage("Prompt cannot be empty.", "system");
+        showError("Prompt cannot be empty.");
         return;
     }
 
     codeTemplateReady = true;
-    
-    // Remove the UI element FIRST to prevent double-clicks/multiple events
     root.remove();
-
-    // Send the user-approved (and potentially edited) prompt to the agent
     send(finalPrompt);
   };
 }
 
-function attachProductHandlers(block) {
-  const endpointsContainer = block.querySelector(".endpoints-container");
-
-  /* ADD FUNCTIONALITY */
-
-  block.querySelector(".add-endpoint").onclick = () => {
-    if (
-      !isEndpointValid(endpointsContainer) &&
-      endpointsContainer.children.length
-    ) {
-      addMessage(
-        "Fill the current functionality before adding another.",
-        "system",
-      );
-
-      return;
-    }
-
-    const row = document.createElement("div");
-    row.innerHTML = createEndpointRow();
-
-    const el = row.firstElementChild;
-
-    endpointsContainer.appendChild(el);
-
-    /* delete functionality */
-
-    el.querySelector(".delete-endpoint").onclick = () => {
-      el.remove();
-    };
-  };
-
-  /* delete product */
-
-  block.querySelector(".delete-product").onclick = () => {
-    block.remove();
-  };
-}
 function buildPrompt(root) {
   const codeType = root.querySelector("#code-type").value;
 
@@ -732,29 +725,50 @@ clear function naming, modular functions, and produce clean well-formatted code 
 function initializeProductSearch(block) {
   const search = block.querySelector(".product-search");
   const dropdown = block.querySelector(".product-dropdown");
-  const options = dropdown.querySelectorAll(".product-option");
+  // Convert NodeList to Array so we can easily iterate and track counts
+  const options = Array.from(dropdown.querySelectorAll(".product-option")); 
 
-  search.addEventListener("focus", () => {
-    dropdown.classList.add("visible");
-  });
+  const MAX_VISIBLE = 6; // Limit the dropdown to 6 items
 
-  search.addEventListener("input", () => {
-    const value = search.value.toLowerCase();
-
+  // Helper function to filter and limit visible items
+  function filterOptions(query) {
+    let visibleCount = 0;
+    
     options.forEach((opt) => {
-      if (opt.textContent.toLowerCase().includes(value)) {
+      // Check if it matches AND we haven't reached our limit
+      if (opt.textContent.toLowerCase().includes(query) && visibleCount < MAX_VISIBLE) {
         opt.style.display = "block";
+        visibleCount++;
       } else {
         opt.style.display = "none";
       }
     });
+  }
+
+  // Show top 6 when clicked
+  search.addEventListener("focus", () => {
+    dropdown.classList.add("visible");
+    filterOptions(search.value.toLowerCase());
   });
 
+  // Dynamically filter as user types
+  search.addEventListener("input", () => {
+    filterOptions(search.value.toLowerCase());
+  });
+
+  // Handle selection
   options.forEach((opt) => {
     opt.onclick = () => {
       search.value = opt.textContent;
       dropdown.classList.remove("visible");
     };
+  });
+
+  // Close dropdown if user clicks anywhere outside this specific product block
+  document.addEventListener("click", (e) => {
+    if (!block.contains(e.target)) {
+      dropdown.classList.remove("visible");
+    }
   });
 }
 function collectTemplateData(root) {
@@ -799,10 +813,33 @@ function collectTemplateData(root) {
   };
 }
 
+function showTypingIndicator() {
+  if (typingIndicatorElement) return; // Already showing
+  
+  typingIndicatorElement = document.createElement("div");
+  typingIndicatorElement.className = "typing-indicator";
+  typingIndicatorElement.innerHTML = `
+    <div class="typing-dot"></div>
+    <div class="typing-dot"></div>
+    <div class="typing-dot"></div>
+  `;
+  
+  chat.appendChild(typingIndicatorElement);
+  chat.scrollTop = chat.scrollHeight; // Scroll down to see it
+}
+
+function hideTypingIndicator() {
+  if (typingIndicatorElement) {
+    typingIndicatorElement.remove();
+    typingIndicatorElement = null;
+  }
+}
+
 window.addEventListener("message", (event) => {
   const msg = event.data;
 
   if (msg.type === "assistant") {
+    hideTypingIndicator();
     addMessage(msg.text, "assistant");
   } else if (msg.type === "loadHistory") {
     // Load chat history
