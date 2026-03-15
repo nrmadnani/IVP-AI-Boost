@@ -21,7 +21,7 @@ export function activate(context: vscode.ExtensionContext) {
 			provider,
 			{
 				webviewOptions: {
-					retainContextWhenHidden: true  // Keep webview alive when hidden
+					retainContextWhenHidden: true,  // Keep webview alive when hidden
 				}
 			}
 		)
@@ -55,10 +55,10 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
 		_token: vscode.CancellationToken
 	) {
 		this._view = webviewView;
-
+		console.log(this._extensionUri, "extension Uri");
 		webviewView.webview.options = {
 			enableScripts: true,
-			localResourceRoots: [this._extensionUri]
+			localResourceRoots: [vscode.Uri.joinPath(this._extensionUri,'src','webview')]
 		};
 
 		webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
@@ -170,20 +170,27 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
 	}
 
 	private _getHtmlForWebview(webview: vscode.Webview): string {
-		// Try to load from external HTML file
-		const htmlPath = path.join(this._context.extensionPath, 'src', 'chatview.html');
-		
-		try {
-			if (fs.existsSync(htmlPath)) {
-				return fs.readFileSync(htmlPath, 'utf8');
-			}
-		} catch (error) {
-			outputChannel.appendLine(`Failed to load HTML file: ${error}`);
-		}
+	console.log(this._context.extensionPath);
+	const htmlPath = path.join(this._context.extensionPath,'src','webview','chatview.html');
+	console.log(htmlPath);
+	const cssUri = webview.asWebviewUri(
+		vscode.Uri.joinPath(this._extensionUri,'src','webview', 'style.css')
+	);
 
-		// Fallback to inline HTML if file doesn't exist
-		return `Sorry, the chat view HTML file is missing.`;
-	}
+	const scriptUri = webview.asWebviewUri(
+		vscode.Uri.joinPath(this._extensionUri, 'src','webview', 'chatview.js')
+	);
+
+	let html = fs.readFileSync(htmlPath, 'utf8');
+	console.log(cssUri.toString(), "css as string");
+	console.log(scriptUri.toString(), "js as string");
+	html = html.replace('{{styleUri}}', cssUri.toString());
+	html = html.replace('{{scriptUri}}', scriptUri.toString());
+	console.log(scriptUri, "js script uri");
+	return html;
+}
+
+
 
 	
 	}

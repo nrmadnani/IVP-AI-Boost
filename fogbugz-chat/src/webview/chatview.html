@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="{{styleUri}}"/>
+    <!-- Marked.js for Markdown parsing -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+
+    <!-- Highlight.js for syntax highlighting -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css"
+    />
+    <link
+      rel="stylesheet"
+      href="https://microsoft.github.io/vscode-codicons/dist/codicon.css"
+    />
+	
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: "dark",
+        securityLevel: "loose",
+      });
+    </script>
+  </head>
+  <body>
+    <div id="chat"></div>
+
+    <div id="input-container">
+      <div id="input-wrapper">
+        <div id="command-menu">
+          <div class="command-item" data-command="/new">
+            <span class="command-name">/new</span>
+            <span class="command-description">Start a new conversation</span>
+          </div>
+          <div class="command-item" data-command="/clear">
+            <span class="command-name">/clear</span>
+            <span class="command-description">Clear chat history</span>
+          </div>
+          <div class="command-item" data-command="/generate-code">
+            <span class="command-name">/generate-code</span>
+            <span class="command-description"
+              >Generate code from structured template</span
+            >
+          </div>
+        </div>
+        <input
+          id="input"
+          placeholder="Ask Othisi..."
+          onkeydown="handleKeyDown(event)"
+        />
+      </div>
+      <button onclick="send()" style="width: fit-content">Send</button>
+    </div>
+    <script src="{{scriptUri}}"></script>
+  </body>
+</html>
