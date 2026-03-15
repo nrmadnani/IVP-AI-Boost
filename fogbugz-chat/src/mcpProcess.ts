@@ -33,9 +33,15 @@ export class MCPProcess {
 	}
 
 	send(message: string) {
-		this.outputChannel.appendLine(`➡️ MCP SEND: ${message}`);
-		this.process.stdin.write(message + '\n');
-	}
+        // 1. Escape the actual newlines into literal text characters "\\n"
+        // This ensures the entire prompt stays on ONE line when passing through stdin
+        const safeMessage = message.replace(/\r?\n/g, '\\n');
+
+        this.outputChannel.appendLine(`➡️ MCP SEND: ${safeMessage}`);
+        
+        // 2. Add the SINGLE newline at the very end to tell Python "execute now"
+        this.process.stdin.write(safeMessage + '\n');
+    }
 
 	onMessage(callback: (message: string) => void) {
 		this.onMessageCallback = callback;

@@ -4,6 +4,8 @@ const chat = document.getElementById("chat");
 const input = document.getElementById("input");
 const commandMenu = document.getElementById("command-menu");
 let selectedCommandIndex = -1;
+let codeTemplateActive = false;
+let codeTemplateReady = false;
 
 const commands = [
   { name: "/new", description: "Start a new conversation" },
@@ -362,95 +364,118 @@ function renderMermaid(container) {
 }
 
 function send(templatePrompt = null) {
-  let text = templatePrompt || input.value.trim();
 
-  // Detect if template exists and Send button was used
-  if (!templatePrompt) {
-    const template = document.querySelector(".code-template");
+  let text = templatePrompt !== null ? templatePrompt : input.value.trim();
 
-    if (template) {
-      const root = template.closest(".message");
-      const generatedPrompt = buildPrompt(root);
-
-      if (!generatedPrompt) {
-        addMessage(
-          "Please complete product and functionality fields before sending.",
-          "system",
-        );
-        return;
-      }
-
-      text = generatedPrompt;
-
-      // remove template after sending
-      root.remove();
-    }
-  }
-
-  if (!text) return;
+  if (!text && !templatePrompt) return;
 
   hideCommandMenu();
 
-  // handle /clear and /new
-  if (text.toLowerCase() === "/clear" || text.toLowerCase() === "/new") {
-    vscode.postMessage({ type: "userMessage", text });
-    input.value = "";
-    return;
-  }
+  const isTemplatePrompt = templatePrompt !== null;
 
-  // handle /generate-code
-  if (text.toLowerCase() === "/generate-code") {
+  /* HANDLE MAGIC COMMAND */
+
+  if (!isTemplatePrompt && text.toLowerCase() === "/generate-code") {
+
     renderCodeTemplate();
+
+    codeTemplateActive = true;
+    codeTemplateReady = false;
+
     input.value = "";
+
     return;
   }
 
-  // display message in chat
+  /* BLOCK SEND WHILE TEMPLATE IS OPEN */
+
+  if (codeTemplateActive && !codeTemplateReady) {
+
+    addMessage(
+      "Complete the Code Generation template before sending.",
+      "system"
+    );
+
+    input.value = "";
+
+    return;
+  }
+
+  /* RESET TEMPLATE FLAGS AFTER PROMPT BUILT */
+
+  if (codeTemplateReady) {
+    codeTemplateActive = false;
+    codeTemplateReady = false;
+  }
+
+  /* DISPLAY MESSAGE */
+
   addMessage(text, "user");
 
-  // send to extension
+  /* AGENT TRIGGER (ONLY PLACE) */
+
   vscode.postMessage({
     type: "userMessage",
-    text,
+    text
   });
 
   input.value = "";
 }
-
 function renderCodeTemplate() {
+  codeTemplateActive = true;
+  codeTemplateReady = false;
+
   const div = document.createElement("div");
   div.className = "message assistant";
 
+  // Using inline styles for the preview layout, move them to your CSS if preferred
   div.innerHTML = `
-	<div class="code-template">
+  <div class="code-template">
+    <h3>Code Generation Workflow</h3>
 
-	<h3>Code Generation Template</h3>
+    <div id="template-form-section">
+      <div class="template-row">
+        <label>Code Type</label>
+        <select id="code-type">
+          <option value="">Select Code Type</option>
+          <option value="rest">REST Endpoint</option>
+          <option value="csharp">C# Client</option>
+          <option value="python">Python Client</option>
+          <option value="javascript">JavaScript Client</option>
+        </select>
+      </div>
 
-	<div class="template-row">
-	<label>Code Type</label>
-	<select id="code-type">
-	<option value="">Select Code Type</option>
-	<option value="rest">REST Endpoint</option>
-	<option value="csharp">C# Client</option>
-	<option value="python">Python Client</option>
-	<option value="javascript">JavaScript Client</option>
-	</select>
-	</div>
+      <div id="products-container"></div>
 
-	<div id="products-container"></div>
+      <button id="add-product" style="margin-bottom: 10px;">Add Product</button>
 
-	<button id="add-product">Add Product</button>
+      <div class="template-actions">
+        <button id="preview-prompt-btn">Preview Prompt</button>
+        <button id="cancel-template-btn">Cancel</button>
+      </div>
+    </div>
 
-	<div class="template-actions">
-	<button id="generate-code">Generate Code</button>
-	</div>
+    <div id="template-preview-section" style="display: none;">
+      <label style="display: block; margin-bottom: 8px; font-weight: bold;">Review and Edit Prompt:</label>
+      <textarea id="prompt-preview-text" style="width: 100%; min-height: 200px; padding: 10px; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border); border-radius: 4px; font-family: inherit; resize: vertical;"></textarea>
+      
+      <div class="template-actions" style="margin-top: 10px; display: flex; gap: 10px;">
+        <button id="back-to-edit-btn">Back</button>
+        <button id="approve-send-btn" style="background: var(--vscode-button-background); color: var(--vscode-button-foreground);">Approve & Send</button>
+      </div>
+    </div>
 
-	</div>
-	`;
+  </div>
+  `;
 
   chat.appendChild(div);
+
   initializeTemplateEvents(div);
+
+  chat.scrollTop = chat.scrollHeight;
 }
+
+
 function isEndpointValid(container) {
   const rows = container.querySelectorAll(".endpoint-row");
 
@@ -529,51 +554,84 @@ ${createProductSelector()}
 function initializeTemplateEvents(root) {
   const productsContainer = root.querySelector("#products-container");
   const addProductBtn = root.querySelector("#add-product");
+  
+  const formSection = root.querySelector("#template-form-section");
+  const previewSection = root.querySelector("#template-preview-section");
+  const previewText = root.querySelector("#prompt-preview-text");
 
-  /* ADD PRODUCT */
-
+  /* ADD PRODUCT (Unchanged logic) */
   addProductBtn.onclick = () => {
     const blocks = productsContainer.querySelectorAll(".product-block");
 
     if (blocks.length) {
       const last = blocks[blocks.length - 1];
-
       if (!isProductValid(last)) {
         addMessage(
           "Finish selecting a product and at least one functionality before adding another.",
-          "system",
+          "system"
         );
-
         return;
       }
     }
 
     const wrapper = document.createElement("div");
     wrapper.innerHTML = createProductBlock();
-
     const block = wrapper.firstElementChild;
-
     productsContainer.appendChild(block);
 
     initializeProductSearch(block);
     attachProductHandlers(block);
   };
 
-  /* GENERATE CODE BUTTON */
-
-  root.querySelector("#generate-code").onclick = () => {
+  /* STEP 1: PREVIEW PROMPT */
+  root.querySelector("#preview-prompt-btn").onclick = () => {
     const prompt = buildPrompt(root);
 
     if (!prompt) {
       addMessage("Please complete product and functionality fields.", "system");
-
       return;
     }
 
-    send(prompt);
+    // Populate textarea and swap visibility
+    previewText.value = prompt;
+    formSection.style.display = "none";
+    previewSection.style.display = "block";
+    
+    // Scroll to the bottom so the user sees the preview box
+    chat.scrollTop = chat.scrollHeight;
+  };
 
-    // remove template after sending
+  /* GO BACK TO EDITING */
+  root.querySelector("#back-to-edit-btn").onclick = () => {
+    previewSection.style.display = "none";
+    formSection.style.display = "block";
+    chat.scrollTop = chat.scrollHeight;
+  };
+
+  /* CANCEL WORKFLOW entirely */
+  root.querySelector("#cancel-template-btn").onclick = () => {
+    codeTemplateActive = false;
+    codeTemplateReady = false;
     root.remove();
+    addMessage("Code generation cancelled.", "system");
+  };
+
+  /* STEP 2: APPROVE AND SEND */
+  root.querySelector("#approve-send-btn").onclick = () => {
+    const finalPrompt = previewText.value.trim();
+    
+    if (!finalPrompt) {
+        addMessage("Prompt cannot be empty.", "system");
+        return;
+    }
+
+    codeTemplateReady = true;
+    
+    // Remove the UI element FIRST to prevent double-clicks/multiple events
+    root.remove();
+
+    // Send the user-approved (and potentially edited) prompt to the agent
+    send(finalPrompt);
   };
 }
 

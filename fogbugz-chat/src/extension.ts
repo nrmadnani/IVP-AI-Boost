@@ -86,6 +86,7 @@ class ChatViewProvider implements vscode.WebviewViewProvider {
         }
         
         if (mcpProcess) {
+			console.log(msg.text);
             mcpProcess.send(msg.text);
             // Save user message to history
             this._addToHistory({ type: 'user', text: msg.text });

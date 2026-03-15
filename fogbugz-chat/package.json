@@ -27,7 +27,7 @@
         {
           "id": "othisi-chat-sidebar",
           "title": "Othisi Chat",
-          "icon": "resources/icon.svg"
+          "icon": "./media/icon vscode.png"
         }
       ]
     },
@@ -36,7 +36,7 @@
         {
           "type": "webview",
           "id": "othisi-chat.chatView",
-          "name": "Chat"
+          "name": ""
         }
       ]
     }
