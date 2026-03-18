@@ -214,9 +214,6 @@ body {
 .code-block-wrapper { position: relative; }
 
 .copy-button {
-  position: absolute;
-  top: 8px;
-  right: 8px;
   background: var(--vscode-editorWidget-background);
   color: var(--fg);
   border: 1px solid var(--border);
@@ -224,14 +221,8 @@ body {
   padding: 4px 10px;
   font-size: 11px;
   cursor: pointer;
-  opacity: 0;
-  transition: all 0.2s ease;
-  z-index: 10;
 }
 
-.code-block-wrapper:hover .copy-button {
-  opacity: 1;
-}
 
 .copy-button:hover {
   background: var(--button-bg);
@@ -245,6 +236,20 @@ body {
   border-color: transparent;
 }
 
+.code-block-btn-group {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  gap: 6px;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.code-block-wrapper:hover .code-block-btn-group {
+  opacity: 1;
+}
 /* Blockquotes */
 .assistant-content blockquote {
   border-left: 4px solid var(--vscode-textLink-foreground);

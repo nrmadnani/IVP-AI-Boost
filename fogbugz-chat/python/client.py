@@ -97,7 +97,7 @@ class MCPClient:
 
         # self.agent = build_react_graph()
         fogbugz_advanced_search_agent = {
-            "name": "Fogbugz Advanced Search Agent",
+            "name": "Fogbugz_Advanced_Search_Agent",
             "description": (
                 "Planner + specialist for complex FogBugz case searches using advanced search syntax, "
                 "memory-aware query planning, filesystem-backed recall, and concise result summarization."

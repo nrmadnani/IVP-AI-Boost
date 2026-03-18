@@ -56,3 +56,7 @@ Related documentation: IVP Security Master overview article; IVP Security Master
 - Wiki viewed: IVP EDM API Programmer Guide / Export Pipeline (ID: 5325)
 - Viewed wiki article 12. Export Pipeline (ID: 5325) — covers REST POST and example payload for ExportPipeline API.
 - Viewed Security Master Documentation (ID:2703) — overview and architecture.
+
+## FogBugz Search Rule
+- The `openedby` filter in FogBugz advanced search only works when using the **full name of the user**, not email or person_id.
+- Secmaster v15 is Secmaster Rearch; all v15 wikis are rearch wikis.

@@ -10,12 +10,14 @@ let typingIndicatorElement = null;
 
 
 const commands = [
-  { name: "/new", description: "Start a new conversation" },
-  { name: "/clear", description: "Clear chat history" },
-  {
-    name: "/generate-code",
-    description: "Generate API/client code using template",
-  },
+  { name: "/new", description: "Start a new conversation thread" },
+  { name: "/clear", description: "Clear chat screen UI" },
+  { name: "/generate-code", description: "Generate API/client code using template" },
+  { name: "/case-search", description: "Search FogBugz cases", prompt: "Search FogBugz for the given case description using the specialized `Fogbugz Advanced Search Agent` with the given user query. Query:  " },
+  { name: "/mail-case", description: "Send an email linked to a FogBugz case", prompt: "I want to send an email linked to a FogBugz case." },
+  { name: "/remember-me", description: "Save your preferences", prompt: "I want you to remember some things, which is why I want you to save the given requested data into USER_PREFERENCES.md file mandatorily on disk. Data to save: " },
+  {name: "/manage-case", description: "Edit, assign, resolve, reassign, add comments to Fogbugz cases", prompt: "Using the `manage-case-lifecycle` skill I want to edit a FogBugz case."}, 
+  {name: "/core-instruction", description: "Add important rules to Othisi memory", prompt: "This is a core system instruction that the agent should remember which is why it should be saved in AGENT_MEMORY.md file mandatorily on disk for future agent responses. Data to save: "}
 ];
 
 const IVP_PRODUCTS = [
@@ -98,17 +100,26 @@ document.addEventListener("click", function (e) {
   }
 });
 
-// Handle command item clicks
-document.querySelectorAll(".command-item").forEach((item) => {
-  item.addEventListener("click", function () {
-    const command = this.getAttribute("data-command");
-    input.value = command;
-    hideCommandMenu();
-    input.focus();
-  });
-});
 
 function showCommandMenu() {
+  commandMenu.innerHTML = "";
+
+  commands.forEach((cmd) => {
+    const item = document.createElement("div");
+    item.className = "command-item";
+    item.setAttribute("data-command", cmd.name);
+    item.innerHTML = `
+      <span class="command-name">${cmd.name}</span>
+      <span class="command-description">${cmd.description}</span>
+    `;
+    item.addEventListener("click", function () {
+      input.value = cmd.name;
+      hideCommandMenu();
+      input.focus();
+    });
+    commandMenu.appendChild(item);
+  });
+
   commandMenu.classList.add("visible");
   selectedCommandIndex = -1;
   updateSelectedCommand();
@@ -301,7 +312,44 @@ function addMessage(text, cls) {
 
       pre.parentElement.insertBefore(codeWrapper, pre);
       codeWrapper.appendChild(pre);
-      codeWrapper.appendChild(codeCopyBtn);
+
+      // BUTTON GROUP — holds Copy (+ Download for JSON) side by side
+      const btnGroup = document.createElement("div");
+      btnGroup.className = "code-block-btn-group";
+      btnGroup.appendChild(codeCopyBtn);
+
+      // DOWNLOAD Button (JSON only)
+      const isJson = block.classList.contains("language-json");
+
+      if (isJson) {
+        const codeDownloadBtn = document.createElement("button");
+        codeDownloadBtn.className = "copy-button";
+        codeDownloadBtn.textContent = "Download";
+
+        codeDownloadBtn.onclick = () => {
+          const code = block.textContent;
+          const blob = new Blob([code], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `collection_${Date.now()}.json`;
+          a.click();
+
+          URL.revokeObjectURL(url);
+
+          codeDownloadBtn.textContent = "Downloaded!";
+          codeDownloadBtn.classList.add("copied");
+          setTimeout(() => {
+            codeDownloadBtn.textContent = "Download";
+            codeDownloadBtn.classList.remove("copied");
+          }, 2000);
+        };
+
+        btnGroup.appendChild(codeDownloadBtn);
+      }
+
+      codeWrapper.appendChild(btnGroup);
     });
 
     wrapper.appendChild(contentDiv);
@@ -381,10 +429,11 @@ function renderCodeTemplate() {
         <label>Code Type</label>
         <select id="code-type">
           <option value="">Select Code Type</option>
-          <option value="rest">REST Endpoint</option>
-          <option value="csharp">C# Client</option>
-          <option value="python">Python Client</option>
-          <option value="javascript">JavaScript Client</option>
+          <option value="HTTP rest endpoints collection">HTTP REST Endpoints</option>
+          <option value="csharp">C#</option>
+          <option value="python">Python</option>
+          <option value="java">Java</option>
+          <option value="javascript">JavaScript</option>
         </select>
       </div>
 
@@ -462,7 +511,28 @@ function send(templatePrompt = null) {
 
   const isTemplatePrompt = templatePrompt !== null;
 
-  /* HANDLE MAGIC COMMAND */
+  /* HANDLE PROMPT-BASED MAGIC COMMANDS */
+  if (!isTemplatePrompt) {
+    const matchedCommand = commands.find(c => c.prompt && text.toLowerCase().startsWith(c.name));
+    if (matchedCommand) {
+      const userQuery = text.slice(matchedCommand.name.length).trim();
+
+      if (!userQuery) {
+        addMessage(`Please add your query after ${matchedCommand.name}. For example: ${matchedCommand.name} your question here`, "system");
+        input.value = "";
+        return;
+      }
+
+      const fullPrompt = `${matchedCommand.prompt}\n\n${userQuery}`;
+      input.value = "";
+      addMessage(fullPrompt, "user");
+      vscode.postMessage({ type: "userMessage", text: fullPrompt });
+      showTypingIndicator();
+      return;
+    }
+  }
+
+  /* HANDLE GENERATE-CODE COMMAND */
   if (!isTemplatePrompt && text.toLowerCase() === "/generate-code") {
     renderCodeTemplate();
     codeTemplateActive = true;
@@ -475,12 +545,11 @@ function send(templatePrompt = null) {
   if (codeTemplateActive && !codeTemplateReady) {
     const errorMsg = "Complete the Code Generation template before sending.";
     const lastMsg = chat.lastElementChild;
-    
-    // Check if the last message is already this warning to prevent spam!
+
     if (!lastMsg || lastMsg.textContent !== errorMsg) {
       addMessage(errorMsg, "system");
     }
-    
+
     input.value = "";
     return;
   }
@@ -499,11 +568,10 @@ function send(templatePrompt = null) {
     type: "userMessage",
     text
   });
-  
+
   input.value = "";
   showTypingIndicator();
 }
-
 function isEndpointValid(container) {
   const rows = container.querySelectorAll(".endpoint-row");
 
@@ -710,7 +778,7 @@ function buildPrompt(root) {
 
   if (!sections.length) return null;
 
-  const prompt = `Generate a code block for ${codeType} based on the following products ${productList.join(", ")}.
+  const prompt = `Generate a code block for ${codeType} based on the following products ${productList.join(", ")} using the "code-generation-skill skill".
 
 ${sections.join("\n")}
 
