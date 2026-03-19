@@ -16,8 +16,7 @@ const commands = [
   { name: "/case-search", description: "Search FogBugz cases", prompt: "Search FogBugz for the given case description using the specialized `Fogbugz Advanced Search Agent` with the given user query. Query:  " },
   { name: "/mail-case", description: "Send an email linked to a FogBugz case", prompt: "I want to send an email linked to a FogBugz case." },
   { name: "/remember-me", description: "Save your preferences", prompt: "I want you to remember some things, which is why I want you to save the given requested data into USER_PREFERENCES.md file mandatorily on disk. Data to save: " },
-  {name: "/manage-case", description: "Edit, assign, resolve, reassign, add comments to Fogbugz cases", prompt: "Using the `manage-case-lifecycle` skill I want to edit a FogBugz case."}, 
-  {name: "/core-instruction", description: "Add important rules to Othisi memory", prompt: "This is a core system instruction that the agent should remember which is why it should be saved in AGENT_MEMORY.md file mandatorily on disk for future agent responses. Data to save: "}
+  {name: "/manage-case", description: "Edit, assign, resolve, reassign, add comments to Fogbugz cases", prompt: "Using the `manage-case-lifecycle` skill I want to edit a FogBugz case."}
 ];
 
 const IVP_PRODUCTS = [
@@ -523,9 +522,9 @@ function send(templatePrompt = null) {
         return;
       }
 
-      const fullPrompt = `${matchedCommand.prompt}\n\n${userQuery}`;
+      const fullPrompt = `${matchedCommand.prompt}\n${userQuery}`;
       input.value = "";
-      addMessage(fullPrompt, "user");
+      addMessage(`${matchedCommand.name} ${userQuery}`, "user");
       vscode.postMessage({ type: "userMessage", text: fullPrompt });
       showTypingIndicator();
       return;

@@ -14,7 +14,7 @@ from requests import session
 from agent.graph import build_react_graph
 from agent.utils import load_chat_model
 import json
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage, SystemMessage, AIMessage, ToolCall, ToolMessage
 from agent.prompts import SYSTEM_PROMPT, FOGBUGZ_ADV_SEARCH_AGENT_PROMPT
 from langchain_core.runnables import RunnableConfig
 import sys
@@ -40,12 +40,32 @@ sys.stderr.reconfigure(encoding="utf-8")
 ROOT_DIR = "D:/IVP AI Boost/fogbugz-chat/python"
 FOGBUGZ_ADV_MEMORY_FILES = [
     "./agent_memory/AGENT_MEMORY.md",
-    "./agent_memory/QUERY_HISTORY.md",
     "./agent_memory/USER_PREFERENCES.md"
+    "./agent_memory/QUERY_HISTORY.md",
 ]
 FILESYSTEM_BACKEND = FilesystemBackend(root_dir=ROOT_DIR, virtual_mode=True)
-MAX_TURNS = 15   # 15 user+assistant pairs
+MAX_TURNS = 4   # every user+assistant pairs
 
+def normalize_result_messages(messages):
+    print(messages)
+    if isinstance(messages, dict):
+        messages = messages["messages"]
+
+    messages_dict = []
+    if not messages:
+        return messages_dict
+    for message in messages:
+        role = None
+        if message.type == "human":
+            role = "user"
+        elif message.type == "ai":
+            role = "assistant"
+        messages_dict.append(
+            {"role": role or message.type, 
+             "content": message.content}
+        )
+
+    return messages_dict
 
 class MCPClient:
     def __init__(self):
@@ -54,7 +74,12 @@ class MCPClient:
         self.agent = None
         self.llm = load_chat_model()
         self.summarize_llm = load_chat_model()
-        self.messages = []
+        self.messages = [
+            {
+                "role": "system",
+                "content": SYSTEM_PROMPT
+            }
+        ]
         self.checkpointer = MemorySaver()
 
 
@@ -117,14 +142,7 @@ class MCPClient:
             checkpointer=self.checkpointer,
             subagents=[fogbugz_advanced_search_agent],
             backend=FILESYSTEM_BACKEND
-            
         )
-        self.messages = [
-            {
-                "role": "system",
-                "content": SYSTEM_PROMPT
-            }
-        ]
 
     async def process_query(self, query: str) -> str:
         try:
@@ -144,23 +162,24 @@ class MCPClient:
                     "content": query,
                 }
             )
+            result = None
+            if len(self.messages)== 2:
+                result = await self.agent.ainvoke(
+                    {
+                        "messages": self.messages
+                    },
+                    config={"configurable": {"thread_id": "12345"}},
 
-            result = await self.agent.ainvoke(
-                {
-                    "messages": self.messages
-                },
-                config={"configurable": {"thread_id": "12345"}},
-
-            )
+                )
+            else: 
+                result = await self.agent.ainvoke({"messages": query} , config={"configurable": {"thread_id": "12345"}})
+                
 
             # ✅ Append assistant response
             assistant_msg = result["messages"][-1]
-            self.messages.append(
-                {
-                    "role": "assistant",
-                    "content": assistant_msg.content,
-                }
-            )
+            result_messages_dict = normalize_result_messages(result["messages"])
+            assistant_messages = [item for item in result_messages_dict if item not in self.messages]
+            self.messages.extend(assistant_messages)
 
             # 🔹 Summarize & store if needed
             await self.summarize_and_store()
@@ -182,7 +201,7 @@ class MCPClient:
         if self._turn_count() <= MAX_TURNS:
             return
 
-        conversation_json = json.dumps(self.messages, indent=2)
+        conversation_json = json.dumps(self.messages[1:], indent=2)
 
         summary_prompt = [
             {
