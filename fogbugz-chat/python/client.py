@@ -47,7 +47,6 @@ FILESYSTEM_BACKEND = FilesystemBackend(root_dir=ROOT_DIR, virtual_mode=True)
 MAX_TURNS = 4   # every user+assistant pairs
 
 def normalize_result_messages(messages):
-    print(messages)
     if isinstance(messages, dict):
         messages = messages["messages"]
 

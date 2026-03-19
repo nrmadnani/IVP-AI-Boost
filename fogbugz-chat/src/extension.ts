@@ -14,7 +14,12 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Register the webview view provider
 	const provider = new ChatViewProvider(context.extensionUri, context);
-	provider.clearHistory(); // Clear history on activation to start fresh
+	
+	const hasInitialized = context.globalState.get('othisi.initialized');
+	if (!hasInitialized) {
+		provider.clearHistory();
+		context.globalState.update('othisi.initialized', true); // ← sets it here
+	}
 	context.subscriptions.push(
 		vscode.window.registerWebviewViewProvider(
 			'othisi-chat.chatView',
