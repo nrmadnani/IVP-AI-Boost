@@ -9,35 +9,30 @@ from langchain.tools import tool  # adjust if your framework uses a different de
 # Workspace configuration
 # ======================================================
 
-# IMPORTANT:
 WORKSPACE_ROOT = Path("D:/IVP AI Boost/fogbugz-chat/python").resolve()
-LOCK_TIMEOUT = 5.0          # seconds to wait for a file lock
-LOCK_POLL_INTERVAL = 0.05  # seconds between lock checks
+
+LOCK_TIMEOUT = 5.0
+LOCK_POLL_INTERVAL = 0.05
 
 
 # ======================================================
-# Internal helpers (NOT tools)
+# Path Resolution
 # ======================================================
-
-
 
 def _resolve_path(filepath: str) -> Path:
     """
-    Resolve a relative filepath safely within WORKSPACE_ROOT.
-
-    - Blocks absolute paths
-    - Blocks path traversal
-    - Works correctly on Windows
+    Resolve a safe path within agent_memory.
     """
-    # Normalize user input
-    cleaned = filepath.lstrip("/\\")  # <-- CRITICAL FIX
+    cleaned = filepath.lstrip("/\\").upper().replace(" ", "")
     target = None
-    if "QUERY_HISTORY" in cleaned.upper().replace(" ",""):
-        target = (WORKSPACE_ROOT / "agent_memory/QUERY_HISTORY.md").resolve()
-    elif "USER_PREFERENCES" in cleaned.upper().replace(" ",""):
-        target = (WORKSPACE_ROOT / "agent_memory/USER_PREFERENCES.md").resolve()
+    if "QUERY_HISTORY" in cleaned:
+        target = WORKSPACE_ROOT / "agent_memory/QUERY_HISTORY.md"
+    elif "USER_PREFERENCES" in cleaned:
+        target = WORKSPACE_ROOT / "agent_memory/USER_PREFERENCES.md"
     else:
-        target = (WORKSPACE_ROOT / "agent_memory/AGENT_MEMORY.md").resolve()
+        target = WORKSPACE_ROOT / "agent_memory/AGENT_MEMORY.md"
+
+    target = target.resolve()
 
     try:
         target.relative_to(WORKSPACE_ROOT)
@@ -47,33 +42,76 @@ def _resolve_path(filepath: str) -> Path:
     return target
 
 
+# ======================================================
+# Locking (Atomic + Windows-safe)
+# ======================================================
 
 def _acquire_lock(path: Path) -> Path:
     """
-    Acquire a simple file-based lock to prevent concurrent writes.
+    Atomically acquire a lock file.
     """
     lock = path.with_suffix(path.suffix + ".lock")
     start = time.time()
 
-    while lock.exists():
-        if time.time() - start > LOCK_TIMEOUT:
-            raise TimeoutError(f"Timeout acquiring lock for {path.name}")
-        time.sleep(LOCK_POLL_INTERVAL)
-
-    lock.touch()
-    return lock
+    while True:
+        try:
+            fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.write(fd, str(os.getpid()).encode())
+            os.close(fd)
+            return lock
+        except FileExistsError:
+            if time.time() - start > LOCK_TIMEOUT:
+                raise TimeoutError(f"Timeout acquiring lock for {path.name}")
+            time.sleep(LOCK_POLL_INTERVAL)
 
 
 def _release_lock(lock: Path):
     """
-    Release a previously acquired file lock.
+    Safely release lock without crashing on Windows.
     """
-    if lock.exists():
-        lock.unlink()
+    for _ in range(5):
+        try:
+            if lock.exists():
+                lock.unlink()
+            return
+        except PermissionError:
+            time.sleep(0.05)
+
+    print(f"[WARN] Failed to delete lock: {lock}")
 
 
 # ======================================================
-# Public agent tools
+# Atomic File Write
+# ======================================================
+
+def _atomic_append(path: Path, content: str):
+    """
+    Append safely using full rewrite + atomic replace.
+    """
+    existing = ""
+
+    if path.exists():
+        try:
+            existing = path.read_text(encoding="utf-8")
+        except Exception:
+            # Rare edge: file being replaced mid-read
+            time.sleep(0.01)
+            existing = path.read_text(encoding="utf-8")
+
+    new_content = existing + content
+
+    temp_path = path.with_suffix(path.suffix + ".tmp")
+
+    with temp_path.open("w", encoding="utf-8") as f:
+        f.write(new_content)
+        f.flush()
+        os.fsync(f.fileno())
+
+    os.replace(temp_path, path)
+
+
+# ======================================================
+# Tools
 # ======================================================
 
 @tool
@@ -101,10 +139,10 @@ def read_from_file(
     if not path.exists():
         return f"ERROR: File does not exist: {filepath}"
 
-    if not path.is_file():
-        return f"ERROR: Not a file: {filepath}"
-
-    return path.read_text(encoding="utf-8")
+    try:
+        return path.read_text(encoding="utf-8")
+    except Exception as e:
+        return f"ERROR reading file: {str(e)}"
 
 
 @tool
@@ -137,8 +175,7 @@ def write_to_file(
 
     lock = _acquire_lock(path)
     try:
-        with path.open("a", encoding="utf-8") as f:
-            f.write(content)
+        _atomic_append(path, content.rstrip() + "\n")
     finally:
         _release_lock(lock)
 
@@ -176,12 +213,11 @@ def append_line(
 
     lock = _acquire_lock(path)
     try:
-        with path.open("a", encoding="utf-8") as f:
-            f.write(line.rstrip() + "\n")
+        _atomic_append(path, line.rstrip() + "\n")
     finally:
         _release_lock(lock)
 
-    return f"OK: Appended 1 line to {filepath}"
+    return f"OK: Appended {len(line)} characters to {filepath}"
 
 
 @tool
@@ -216,11 +252,11 @@ def write_block(
     path = _resolve_path(filepath)
     path.parent.mkdir(parents=True, exist_ok=True)
 
+    block = f"\n## {block_title}\n{content.rstrip()}\n"
+
     lock = _acquire_lock(path)
     try:
-        with path.open("a", encoding="utf-8") as f:
-            f.write(f"\n## {block_title}\n")
-            f.write(content.rstrip() + "\n")
+        _atomic_append(path, block)
     finally:
         _release_lock(lock)
 
@@ -258,11 +294,11 @@ def write_block_function(
     path = _resolve_path(filepath)
     path.parent.mkdir(parents=True, exist_ok=True)
 
+    block = f"\n## {block_title}\n{content.rstrip()}\n"
+
     lock = _acquire_lock(path)
     try:
-        with path.open("a", encoding="utf-8") as f:
-            f.write(f"\n## {block_title}\n")
-            f.write(content.rstrip() + "\n")
+        _atomic_append(path, block)
     finally:
         _release_lock(lock)
 
